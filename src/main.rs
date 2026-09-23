@@ -1,7 +1,7 @@
 use axum::{
     Json, Router,
     body::Body,
-    extract::{Multipart, Query, State},
+    extract::{DefaultBodyLimit, Multipart, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{Html, IntoResponse, Response},
     routing::{delete, get, post},
@@ -78,6 +78,7 @@ async fn main() -> io::Result<()> {
         .route("/api/upload", post(upload))
         .route("/view", get(view))
         .route("/download", get(download))
+        .layer(DefaultBodyLimit::disable())
         .with_state(state);
 
     let addr = env::var("DRIVE_ADDR").unwrap_or_else(|_| "0.0.0.0:8083".into());
