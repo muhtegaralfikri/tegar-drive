@@ -13,7 +13,11 @@ use std::{
     sync::Arc,
     time::UNIX_EPOCH,
 };
-use tokio::{fs, io::AsyncWriteExt, net::TcpListener};
+use tokio::{
+    fs,
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+    net::TcpListener,
+};
 use tokio_util::io::ReaderStream;
 
 const LOGIN: &str = include_str!("../static/login.html");
@@ -31,6 +35,8 @@ struct AppState {
 #[derive(Deserialize)]
 struct PathQuery {
     path: Option<String>,
+    user: Option<String>,
+    password: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -227,14 +233,47 @@ async fn view(
     headers: HeaderMap,
     Query(q): Query<PathQuery>,
 ) -> Result<Response, Response> {
-    auth(&state, &headers)?;
+    if q.user.as_deref() != Some(state.user.as_str())
+        || q.password.as_deref() != Some(state.password.as_str())
+    {
+        auth(&state, &headers)?;
+    }
     let path = q.path.unwrap_or_default();
     let target = resolve(&state.root, &path)?;
-    let file = fs::File::open(&target).await.map_err(err)?;
+    let mut file = fs::File::open(&target).await.map_err(err)?;
+    let len = file.metadata().await.map_err(err)?.len();
+    let content_type = content_type(&target);
+
+    if let Some((start, end)) = parse_range(&headers, len) {
+        file.seek(std::io::SeekFrom::Start(start)).await.map_err(err)?;
+        let stream = ReaderStream::new(file.take(end - start + 1));
+        let mut res = Body::from_stream(stream).into_response();
+        *res.status_mut() = StatusCode::PARTIAL_CONTENT;
+        res.headers_mut().insert(
+            header::CONTENT_RANGE,
+            HeaderValue::from_str(&format!("bytes {start}-{end}/{len}")).map_err(err)?,
+        );
+        res.headers_mut().insert(
+            header::CONTENT_LENGTH,
+            HeaderValue::from_str(&(end - start + 1).to_string()).map_err(err)?,
+        );
+        res.headers_mut()
+            .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+        res.headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+        return Ok(res);
+    }
+
     let mut res = Body::from_stream(ReaderStream::new(file)).into_response();
     res.headers_mut().insert(
         header::CONTENT_TYPE,
-        HeaderValue::from_static(content_type(&target)),
+        HeaderValue::from_static(content_type),
+    );
+    res.headers_mut()
+        .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    res.headers_mut().insert(
+        header::CONTENT_LENGTH,
+        HeaderValue::from_str(&len.to_string()).map_err(err)?,
     );
     Ok(res)
 }
@@ -323,6 +362,19 @@ fn content_type(path: &Path) -> &'static str {
         "wav" => "audio/wav",
         _ => "application/octet-stream",
     }
+}
+
+fn parse_range(headers: &HeaderMap, len: u64) -> Option<(u64, u64)> {
+    let range = headers.get(header::RANGE)?.to_str().ok()?;
+    let range = range.strip_prefix("bytes=")?;
+    let (start, end) = range.split_once('-')?;
+    let start = start.parse::<u64>().ok()?;
+    let end = if end.is_empty() {
+        len.saturating_sub(1)
+    } else {
+        end.parse::<u64>().ok()?.min(len.saturating_sub(1))
+    };
+    (start <= end && end < len).then_some((start, end))
 }
 
 #[cfg(test)]

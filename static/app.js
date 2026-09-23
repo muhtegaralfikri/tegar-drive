@@ -240,36 +240,49 @@ async function preview(file) {
   $("previewDownload").onclick = () => download(file);
   $("previewDialog").showModal();
 
-  const res = await api(`/view?path=${encodeURIComponent(file.path)}`);
-  const type = res.headers.get("content-type") || "";
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
   const ext = file.name.split(".").pop().toLowerCase();
+  const directUrl = viewUrl(file.path);
   let node;
 
-  if (type.startsWith("image/")) {
+  if (["jpg", "jpeg", "png", "gif", "webp", "svg", "avif", "apng"].includes(ext)) {
     node = document.createElement("img");
-    node.src = url;
-  } else if (type.startsWith("video/")) {
+    node.src = directUrl;
+  } else if (["mp4", "webm"].includes(ext)) {
     node = document.createElement("video");
-    node.src = url;
+    node.src = directUrl;
     node.controls = true;
-  } else if (type.startsWith("audio/")) {
+    node.preload = "metadata";
+  } else if (["mp3", "wav", "ogg"].includes(ext)) {
     node = document.createElement("audio");
-    node.src = url;
+    node.src = directUrl;
     node.controls = true;
-  } else if (type === "application/pdf") {
+    node.preload = "metadata";
+  } else if (ext === "pdf") {
     node = document.createElement("iframe");
-    node.src = url;
-  } else if (type.startsWith("text/") || ["js", "json", "md", "rs", "toml", "yaml", "yml"].includes(ext)) {
-    node = document.createElement("pre");
-    node.textContent = await blob.text();
+    node.src = directUrl;
+  } else if (["css", "csv", "html", "js", "json", "log", "md", "mjs", "rs", "sh", "toml", "txt", "xml", "yaml", "yml"].includes(ext)) {
+    if (file.size > 1048576) {
+      node = message("Preview text dibatasi 1 MB. Gunakan tombol download.");
+    } else {
+      const res = await api(`/view?path=${encodeURIComponent(file.path)}`);
+      const blob = await res.blob();
+      node = document.createElement("pre");
+      node.textContent = await blob.text();
+    }
   } else {
     node = message("Preview belum tersedia untuk format ini. Gunakan tombol download.");
   }
 
-  node.dataset.url = url;
   $("previewBody").replaceChildren(node);
+}
+
+function viewUrl(path) {
+  const params = new URLSearchParams({
+    path,
+    user: auth?.user || "",
+    password: auth?.password || "",
+  });
+  return `/view?${params.toString()}`;
 }
 
 function closePreview() {
@@ -277,8 +290,6 @@ function closePreview() {
 }
 
 function clearPreview() {
-  const node = $("previewBody").firstElementChild;
-  if (node?.dataset?.url) URL.revokeObjectURL(node.dataset.url);
   $("previewBody").replaceChildren();
 }
 
