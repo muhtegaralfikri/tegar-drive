@@ -13,6 +13,7 @@ const icons = {
   "folder-plus": '<svg viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
   "hard-drive": '<svg viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>',
   logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
   pencil: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
@@ -189,6 +190,45 @@ function row(file) {
     if (trashMode) {
       return;
     }
+    if (file.dir) {
+      cwd = file.path;
+      load();
+    } else {
+      preview(file);
+    }
+  };
+  el.querySelector('[data-act="download"]')?.addEventListener("click", () => download(file));
+  el.querySelector('[data-act="rename"]')?.addEventListener("click", () => rename(file));
+  el.querySelector('[data-act="restore"]')?.addEventListener("click", () => restore(file));
+  el.querySelector('[data-act="delete"]').onclick = () => (trashMode ? removeForever(file) : remove(file));
+  return el;
+}
+
+function row(file) {
+  const el = document.createElement("article");
+  el.className = "file";
+  el.innerHTML = `
+    <button class="name">
+      <span class="file-icon ${file.dir ? "dir" : "doc"}">${icon(file.dir ? "folder" : "file")}</span>
+      <span>
+        <strong>${escapeHtml(file.name)}</strong>
+        <small>${trashMode && file.original_path ? escapeHtml(file.original_path) : kind(file.name)}</small>
+      </span>
+    </button>
+    <span class="file-size">${file.dir ? "-" : size(file.size)}</span>
+    <span class="file-date">${date(file.modified)}</span>
+    <details class="row-menu">
+      <summary title="Menu">${icon("more")}</summary>
+      <div class="menu-panel">
+        ${trashMode ? `<button data-act="restore">${icon("arrow-up")} Restore</button>` : ""}
+        ${file.dir || trashMode ? "" : `<button data-act="download">${icon("download")} Download</button>`}
+        ${trashMode ? "" : `<button data-act="rename">${icon("pencil")} Rename</button>`}
+        <button class="danger" data-act="delete">${icon("trash")} ${trashMode ? "Hapus permanen" : "Hapus"}</button>
+      </div>
+    </details>`;
+
+  el.querySelector(".name").onclick = () => {
+    if (trashMode) return;
     if (file.dir) {
       cwd = file.path;
       load();
@@ -385,6 +425,16 @@ function formatBytes(n) {
   if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
   return `${(n / 1073741824).toFixed(1)} GB`;
+}
+
+async function loadStorage() {
+  const res = await api("/api/storage");
+  if (!res.ok) return;
+  const info = await res.json();
+  const percent = info.total ? Math.round((info.used / info.total) * 100) : 0;
+  $("storageUsed").textContent = `${percent}%`;
+  $("storageText").textContent = `${formatBytes(info.used)} / ${formatBytes(info.total)} · sisa ${formatBytes(info.free)}`;
+  $("storageProgress").value = percent;
 }
 
 function showUpload(files, percent, detail) {

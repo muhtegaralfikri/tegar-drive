@@ -582,3 +582,307 @@ svg {
     justify-content: flex-end;
   }
 }
+
+/* File-manager skin */
+:root {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.login-card {
+  box-shadow: none;
+}
+
+.app-shell {
+  padding: 0;
+}
+
+.topbar {
+  max-width: none;
+  height: 52px;
+  margin: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.brand-icon.small {
+  width: 30px;
+  height: 30px;
+  background: #0f766e;
+}
+
+h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.identity p {
+  margin-top: 0;
+  font-size: 12px;
+}
+
+.workspace {
+  max-width: none;
+  min-height: calc(100svh - 52px);
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 0;
+}
+
+.sidebar,
+.content {
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+
+.sidebar {
+  align-self: stretch;
+  align-content: start;
+  padding: 8px;
+  border-right: 1px solid #d1d5db;
+}
+
+.side-action,
+.upload,
+button,
+input,
+.sort-wrap select {
+  border-radius: 6px;
+}
+
+.side-action {
+  justify-content: flex-start;
+  min-height: 34px;
+  padding: 0 10px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 14px;
+}
+
+.side-action:hover,
+.side-action.primary {
+  background: #ecfdf5;
+  border-color: #99f6e4;
+  color: #0f766e;
+}
+
+.content {
+  padding: 0;
+}
+
+.content-head {
+  min-height: 48px;
+  margin: 0;
+  padding: 6px 10px;
+  grid-template-columns: auto minmax(210px, 280px) minmax(180px, 1fr) auto;
+  gap: 8px;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.storage-card {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.storage-card > div {
+  font-size: 12px;
+}
+
+#storageProgress {
+  height: 5px;
+}
+
+.search-wrap input,
+.sort-wrap select,
+.icon-btn {
+  min-height: 34px;
+}
+
+.file-head,
+.file {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 170px 40px;
+  align-items: center;
+}
+
+.file-head {
+  height: 32px;
+  padding: 0 10px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#files {
+  display: block;
+}
+
+.file {
+  min-height: 46px;
+  padding: 0 10px;
+  gap: 0;
+  border: 0;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 0;
+  background: #fff;
+}
+
+.file:hover {
+  border-color: #f1f5f9;
+  background: #f8fafc;
+}
+
+.file .name {
+  min-height: 44px;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.file .name strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.file .name small,
+.file-size,
+.file-date {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.file-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.file-icon.dir {
+  background: transparent;
+  color: #b45309;
+}
+
+.file-icon.doc {
+  background: transparent;
+  color: #475569;
+}
+
+.row-menu {
+  position: relative;
+  justify-self: end;
+}
+
+.row-menu summary {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  list-style: none;
+}
+
+.row-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.row-menu summary:hover {
+  background: #e5e7eb;
+}
+
+.menu-panel {
+  position: absolute;
+  right: 0;
+  z-index: 5;
+  min-width: 168px;
+  padding: 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.menu-panel button {
+  width: 100%;
+  min-height: 32px;
+  justify-content: flex-start;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+.menu-panel button:hover {
+  background: #f3f4f6;
+}
+
+#uploadPanel {
+  margin: 8px 10px;
+  padding: 8px 10px;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+
+#previewDialog {
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    height: 48px;
+  }
+
+  .workspace {
+    min-height: calc(100svh - 48px);
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    grid-template-columns: repeat(4, 1fr);
+    border-right: 0;
+    border-bottom: 1px solid #d1d5db;
+  }
+
+  .side-action {
+    justify-content: center;
+  }
+
+  .content-head {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .file-head {
+    display: none;
+  }
+
+  .file {
+    grid-template-columns: minmax(0, 1fr) 38px;
+    min-height: 48px;
+  }
+
+  .file-size,
+  .file-date {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .sidebar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .brand-icon.small {
+    display: none;
+  }
+}

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Drive - Tegar Drive</title>
-    <link rel="stylesheet" href="/style.css?v=6" />
+    <link rel="stylesheet" href="/style.css?v=9" />
   </head>
   <body>
     <main class="app-shell">
@@ -33,9 +33,7 @@
 
         <section class="content">
           <div class="content-head">
-            <div>
-              <h2>Files</h2>
-            </div>
+            <h2>Files</h2>
             <section class="storage-card">
               <div>
                 <strong id="storageUsed">-</strong>
@@ -71,6 +69,12 @@
             <progress id="uploadProgress" value="0" max="100"></progress>
             <small id="uploadDetail"></small>
           </section>
+          <div class="file-head">
+            <span>Nama</span>
+            <span>Ukuran</span>
+            <span>Diubah</span>
+            <span></span>
+          </div>
           <section id="files"></section>
         </section>
       </section>
@@ -90,6 +94,6 @@
       </dialog>
     </main>
 
-    <script src="/app.js?v=8"></script>
+    <script src="/app.js?v=9"></script>
   </body>
 </html>
