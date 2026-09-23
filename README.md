@@ -58,3 +58,9 @@ Artifact release:
 ```text
 tegar-drive-linux-arm64.tar.gz
 ```
+
+Install/update di STB:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/muhtegaralfikri/tegar-drive/main/scripts/install-stb.sh | DRIVE_PASSWORD='change-me' bash
+```
