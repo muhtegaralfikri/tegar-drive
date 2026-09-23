@@ -135,7 +135,7 @@ async function loadStorage() {
   if (!res.ok) return;
   const info = await res.json();
   const percent = info.total ? Math.round((info.used / info.total) * 100) : 0;
-  $("storageUsed").textContent = `${percent}% digunakan`;
+  $("storageUsed").textContent = `${percent}%`;
   $("storageText").textContent = `${formatBytes(info.used)} / ${formatBytes(info.total)} · sisa ${formatBytes(info.free)}`;
   $("storageProgress").value = percent;
 }
