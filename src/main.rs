@@ -45,6 +45,11 @@ struct PathQuery {
 }
 
 #[derive(Deserialize)]
+struct SearchQuery {
+    q: String,
+}
+
+#[derive(Deserialize)]
 struct LoginReq {
     user: String,
     password: String,
@@ -65,6 +70,12 @@ struct RenameReq {
 #[derive(Deserialize)]
 struct RestoreReq {
     path: String,
+}
+
+#[derive(Deserialize)]
+struct BatchReq {
+    paths: Vec<String>,
+    to: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -107,10 +118,14 @@ async fn main() -> io::Result<()> {
         .route("/api/login", post(login))
         .route("/api/logout", post(logout))
         .route("/api/list", get(list))
+        .route("/api/search", get(search))
         .route("/api/storage", get(storage))
         .route("/api/mkdir", post(mkdir))
         .route("/api/rename", post(rename))
+        .route("/api/move", post(move_items))
+        .route("/api/copy", post(copy_items))
         .route("/api/delete", delete(remove))
+        .route("/api/delete/bulk", post(remove_bulk))
         .route("/api/trash", get(trash))
         .route("/api/trash/restore", post(restore))
         .route("/api/trash/delete", delete(remove_forever))
@@ -229,6 +244,19 @@ async fn storage(
     storage_info(&state.root).map(Json).map_err(err)
 }
 
+async fn search(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<SearchQuery>,
+) -> Result<Json<Vec<Entry>>, Response> {
+    auth(&state, &headers)?;
+    let needle = q.q.trim().to_ascii_lowercase();
+    if needle.len() < 2 {
+        return Ok(Json(Vec::new()));
+    }
+    search_entries(&state.root, &needle).map(Json).map_err(err)
+}
+
 async fn mkdir(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -259,31 +287,71 @@ async fn rename(
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn move_items(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<BatchReq>,
+) -> Result<StatusCode, Response> {
+    auth(&state, &headers)?;
+    let dest = resolve_existing(&state.root, req.to.as_deref().unwrap_or("")).await?;
+    for rel in req.paths {
+        let from = resolve_existing(&state.root, &rel).await?;
+        let name = from
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "path tidak valid").into_response())?;
+        let to = unique_path(&dest, name).await?;
+        if dest.starts_with(&from) {
+            return Err((StatusCode::BAD_REQUEST, "tujuan tidak valid").into_response());
+        }
+        fs::rename(from, to).await.map_err(err)?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn copy_items(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<BatchReq>,
+) -> Result<StatusCode, Response> {
+    auth(&state, &headers)?;
+    let dest = resolve_existing(&state.root, req.to.as_deref().unwrap_or("")).await?;
+    for rel in req.paths {
+        let from = resolve_existing(&state.root, &rel).await?;
+        let name = from
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "path tidak valid").into_response())?
+            .to_string();
+        let to = unique_path(&dest, &name).await?;
+        let from2 = from.clone();
+        tokio::task::spawn_blocking(move || copy_path(&from2, &to))
+            .await
+            .map_err(err)?
+            .map_err(err)?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
 async fn remove(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(q): Query<PathQuery>,
 ) -> Result<StatusCode, Response> {
     auth(&state, &headers)?;
-    let rel = q.path.as_deref().unwrap_or("");
-    if rel.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "path tidak valid").into_response());
+    move_to_trash(&state.root, q.path.as_deref().unwrap_or("")).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn remove_bulk(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<BatchReq>,
+) -> Result<StatusCode, Response> {
+    auth(&state, &headers)?;
+    for rel in req.paths {
+        move_to_trash(&state.root, &rel).await?;
     }
-    let target = resolve_existing(&state.root, rel).await?;
-    let trash_dir = state.root.join(".trash");
-    let meta_dir = trash_dir.join(".meta");
-    fs::create_dir_all(&meta_dir).await.map_err(err)?;
-    let name = Path::new(rel)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("file");
-    let trash_name = unique_trash_name(name);
-    fs::write(meta_dir.join(&trash_name), rel)
-        .await
-        .map_err(err)?;
-    fs::rename(target, trash_dir.join(trash_name))
-        .await
-        .map_err(err)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -547,6 +615,28 @@ async fn resolve_existing(root: &Path, rel: &str) -> Result<PathBuf, Response> {
     }
 }
 
+async fn move_to_trash(root: &Path, rel: &str) -> Result<(), Response> {
+    if rel.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "path tidak valid").into_response());
+    }
+    let target = resolve_existing(root, rel).await?;
+    let trash_dir = root.join(".trash");
+    let meta_dir = trash_dir.join(".meta");
+    fs::create_dir_all(&meta_dir).await.map_err(err)?;
+    let name = Path::new(rel)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file");
+    let trash_name = unique_trash_name(name);
+    fs::write(meta_dir.join(&trash_name), rel)
+        .await
+        .map_err(err)?;
+    fs::rename(target, trash_dir.join(trash_name))
+        .await
+        .map_err(err)?;
+    Ok(())
+}
+
 fn resolve(root: &Path, rel: &str) -> Result<PathBuf, Response> {
     let mut out = root.to_path_buf();
     for part in Path::new(rel.trim_start_matches('/')).components() {
@@ -615,6 +705,71 @@ fn display_trash_name(name: &str) -> String {
     name.split_once('-')
         .map_or(name, |(_, rest)| rest)
         .to_string()
+}
+
+fn search_entries(root: &Path, needle: &str) -> io::Result<Vec<Entry>> {
+    let mut out = Vec::new();
+    search_dir(root, root, needle, &mut out)?;
+    Ok(out)
+}
+
+fn search_dir(root: &Path, dir: &Path, needle: &str, out: &mut Vec<Entry>) -> io::Result<()> {
+    if out.len() >= 200 {
+        return Ok(());
+    }
+    for item in std::fs::read_dir(dir)? {
+        let item = item?;
+        let path = item.path();
+        let name = item.file_name().to_string_lossy().to_string();
+        if path == root.join(".trash") {
+            continue;
+        }
+        let meta = item.metadata()?;
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if name.to_ascii_lowercase().contains(needle) {
+            let modified = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map_or(0, |d| d.as_secs());
+            out.push(Entry {
+                name: name.clone(),
+                path: rel,
+                dir: meta.is_dir(),
+                size: meta.len(),
+                modified,
+                original_path: None,
+            });
+        }
+        if meta.is_dir() {
+            let _ = search_dir(root, &path, needle, out);
+        }
+    }
+    Ok(())
+}
+
+fn copy_path(from: &Path, to: &Path) -> io::Result<()> {
+    let meta = std::fs::metadata(from)?;
+    if meta.is_dir() {
+        if to.starts_with(from) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "tidak bisa copy folder ke dalam dirinya sendiri",
+            ));
+        }
+        std::fs::create_dir(to)?;
+        for item in std::fs::read_dir(from)? {
+            let item = item?;
+            copy_path(&item.path(), &to.join(item.file_name()))?;
+        }
+    } else {
+        std::fs::copy(from, to)?;
+    }
+    Ok(())
 }
 
 fn typed(body: &'static str, content_type: &'static str) -> impl IntoResponse {

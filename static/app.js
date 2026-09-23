@@ -1,6 +1,8 @@
 let cwd = "";
 let entries = [];
 let trashMode = false;
+let selected = new Set();
+let searchTimer = 0;
 
 const icons = {
   "arrow-up": '<svg viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>',
@@ -282,6 +284,42 @@ async function restore(file) {
   loadStorage();
 }
 
+async function moveItems(paths) {
+  const to = prompt("Pindah ke folder path", "");
+  if (to === null) return;
+  await api("/api/move", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ paths, to }),
+  });
+  selected.clear();
+  load();
+}
+
+async function copyItems(paths) {
+  const to = prompt("Copy ke folder path", "");
+  if (to === null) return;
+  await api("/api/copy", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ paths, to }),
+  });
+  selected.clear();
+  load();
+}
+
+async function deleteItems(paths) {
+  if (!confirm(`Pindahkan ${paths.length} item ke Trash?`)) return;
+  await api("/api/delete/bulk", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ paths }),
+  });
+  selected.clear();
+  load();
+  loadStorage();
+}
+
 async function removeForever(file) {
   if (!confirm(`Hapus permanen ${file.name}?`)) return;
   await api(`/api/trash/delete?path=${encodeURIComponent(file.path)}`, { method: "DELETE" });
@@ -447,4 +485,155 @@ function showUpload(files, percent, detail) {
 
 function hideUpload() {
   $("uploadPanel").hidden = true;
+}
+
+async function loadStorage() {
+  const res = await api("/api/storage");
+  if (!res.ok) return;
+  const info = await res.json();
+  const percent = info.total ? Math.round((info.used / info.total) * 100) : 0;
+  $("storageUsed").textContent = `${percent}%`;
+  $("storageText").textContent = `${formatBytes(info.used)} / ${formatBytes(info.total)} / sisa ${formatBytes(info.free)}`;
+  $("storageProgress").value = percent;
+}
+
+function initDrive() {
+  $("newFolderBtn").onclick = mkdir;
+  $("newFolderBtn").innerHTML = `${icon("folder-plus")} <span>Folder</span>`;
+  $("upBtn").innerHTML = `${icon("arrow-up")} <span>Naik</span>`;
+  $("trashBtn").innerHTML = `${icon("trash")} <span>Trash</span>`;
+  $("trashBtn").onclick = () => {
+    trashMode = !trashMode;
+    cwd = "";
+    selected.clear();
+    $("search").value = "";
+    load();
+  };
+  $("logoutBtn").innerHTML = icon("logout");
+  $("closePreview").innerHTML = icon("x");
+  $("closePreview").onclick = closePreview;
+  $("previewDialog").addEventListener("close", clearPreview);
+  $("logoutBtn").onclick = async () => {
+    await api("/api/logout", { method: "POST" });
+    location.href = "/login";
+  };
+  $("search").oninput = () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(searchOrFilter, 250);
+  };
+  $("sortBy").onchange = render;
+  $("sortDir").onclick = () => {
+    $("sortDir").dataset.desc = $("sortDir").dataset.desc === "true" ? "false" : "true";
+    $("sortDir").textContent = $("sortDir").dataset.desc === "true" ? "Z-A" : "A-Z";
+    render();
+  };
+  $("uploadInput").onchange = (e) => upload(e.target.files);
+  $("upBtn").onclick = () => {
+    cwd = cwd.split("/").slice(0, -1).join("/");
+    load();
+  };
+  $("bulkMove").onclick = () => moveItems([...selected]);
+  $("bulkCopy").onclick = () => copyItems([...selected]);
+  $("bulkDelete").onclick = () => deleteItems([...selected]);
+  $("drop").ondragover = (e) => e.preventDefault();
+  $("drop").ondrop = (e) => {
+    e.preventDefault();
+    upload(e.dataTransfer.files);
+  };
+  load();
+  loadStorage();
+}
+
+async function searchOrFilter() {
+  const q = $("search").value.trim();
+  selected.clear();
+  if (q.length >= 2 && !trashMode) {
+    const res = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    if (res.ok) {
+      entries = await res.json();
+      $("crumb").textContent = `/Search: ${q}`;
+      render();
+    }
+    return;
+  }
+  if (!q) load();
+  else render();
+}
+
+function render() {
+  const q = $("search").value.trim().toLowerCase();
+  const localFilter = q && q.length < 2;
+  const shown = localFilter ? entries.filter((f) => f.name.toLowerCase().includes(q)) : [...entries];
+  shown.sort(compareFiles);
+  $("files").replaceChildren(...shown.map(row));
+  updateBulkBar();
+}
+
+function row(file) {
+  const el = document.createElement("article");
+  el.className = "file";
+  el.innerHTML = `
+    <div class="name">
+      <input class="pick" type="checkbox" ${selected.has(file.path) ? "checked" : ""} aria-label="Pilih ${escapeHtml(file.name)}" />
+      <span class="file-icon ${file.dir ? "dir" : "doc"}">${icon(file.dir ? "folder" : "file")}</span>
+      <span>
+        <strong>${escapeHtml(file.name)}</strong>
+        <small>${trashMode && file.original_path ? escapeHtml(file.original_path) : kind(file.name)}</small>
+      </span>
+    </div>
+    <span class="file-size">${file.dir ? "-" : size(file.size)}</span>
+    <span class="file-date">${date(file.modified)}</span>
+    <details class="row-menu">
+      <summary title="Menu">${icon("more")}</summary>
+      <div class="menu-panel">
+        ${trashMode ? `<button data-act="restore">${icon("arrow-up")} Restore</button>` : ""}
+        ${file.dir || trashMode ? "" : `<button data-act="download">${icon("download")} Download</button>`}
+        ${trashMode ? "" : `<button data-act="move">${icon("arrow-up")} Move</button><button data-act="copy">${icon("file")} Copy</button><button data-act="rename">${icon("pencil")} Rename</button>`}
+        <button class="danger" data-act="delete">${icon("trash")} ${trashMode ? "Hapus permanen" : "Hapus"}</button>
+      </div>
+    </details>`;
+
+  el.querySelector(".pick").onchange = (e) => {
+    e.stopPropagation();
+    e.target.checked ? selected.add(file.path) : selected.delete(file.path);
+    updateBulkBar();
+  };
+  el.querySelector(".name").onclick = (e) => {
+    if (e.target.classList.contains("pick") || trashMode) return;
+    if (file.dir) {
+      cwd = file.path;
+      $("search").value = "";
+      selected.clear();
+      load();
+    } else {
+      preview(file);
+    }
+  };
+  el.querySelector('[data-act="download"]')?.addEventListener("click", () => download(file));
+  el.querySelector('[data-act="move"]')?.addEventListener("click", () => moveItems([file.path]));
+  el.querySelector('[data-act="copy"]')?.addEventListener("click", () => copyItems([file.path]));
+  el.querySelector('[data-act="rename"]')?.addEventListener("click", () => rename(file));
+  el.querySelector('[data-act="restore"]')?.addEventListener("click", () => restore(file));
+  el.querySelector('[data-act="delete"]').onclick = () => (trashMode ? removeForever(file) : remove(file));
+  return el;
+}
+
+function updateBulkBar() {
+  $("bulkBar").hidden = !selected.size || trashMode;
+  $("selectedCount").textContent = `${selected.size} dipilih`;
+}
+
+async function load() {
+  selected.clear();
+  const res = await api(trashMode ? "/api/trash" : `/api/list?path=${encodeURIComponent(cwd)}`);
+  if (res.status === 401) {
+    location.href = "/login";
+    return;
+  }
+  entries = await res.json();
+  $("crumb").textContent = trashMode ? "/Trash" : "/" + cwd;
+  $("upBtn").disabled = trashMode;
+  $("newFolderBtn").disabled = trashMode;
+  $("trashBtn").classList.toggle("primary", trashMode);
+  render();
 }

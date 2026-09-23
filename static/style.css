@@ -745,6 +745,15 @@ input,
   min-height: 44px;
   gap: 10px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.pick {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: #0f766e;
+  flex: 0 0 auto;
 }
 
 .file .name strong {
@@ -831,6 +840,31 @@ input,
   padding: 8px 10px;
   border-color: #99f6e4;
   background: #f0fdfa;
+}
+
+#bulkBar {
+  min-height: 40px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #d1d5db;
+  background: #f0fdfa;
+}
+
+#bulkBar[hidden] {
+  display: none;
+}
+
+#bulkBar strong {
+  margin-right: auto;
+  font-size: 13px;
+}
+
+#bulkBar button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 #previewDialog {

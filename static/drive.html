@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Drive - Tegar Drive</title>
-    <link rel="stylesheet" href="/style.css?v=9" />
+    <link rel="stylesheet" href="/style.css?v=10" />
   </head>
   <body>
     <main class="app-shell">
@@ -69,6 +69,12 @@
             <progress id="uploadProgress" value="0" max="100"></progress>
             <small id="uploadDetail"></small>
           </section>
+          <section id="bulkBar" hidden>
+            <strong id="selectedCount">0 dipilih</strong>
+            <button id="bulkMove">Move</button>
+            <button id="bulkCopy">Copy</button>
+            <button id="bulkDelete" class="danger">Delete</button>
+          </section>
           <div class="file-head">
             <span>Nama</span>
             <span>Ukuran</span>
@@ -94,6 +100,6 @@
       </dialog>
     </main>
 
-    <script src="/app.js?v=9"></script>
+    <script src="/app.js?v=10"></script>
   </body>
 </html>
