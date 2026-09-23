@@ -137,7 +137,7 @@ function row(file) {
       <span class="file-icon ${file.dir ? "dir" : "doc"}">${icon(file.dir ? "folder" : "file")}</span>
       <span>
         <strong>${escapeHtml(file.name)}</strong>
-        <small>${file.dir ? "Folder" : size(file.size)}</small>
+        <small>${file.dir ? "Folder" : size(file.size)} · ${date(file.modified)}</small>
       </span>
     </button>
     <div class="actions">
@@ -232,6 +232,10 @@ async function download(file) {
 
 async function preview(file) {
   $("previewTitle").textContent = file.name;
+  $("previewMeta").innerHTML = `
+    <div><dt>Tipe</dt><dd>${file.dir ? "Folder" : kind(file.name)}</dd></div>
+    <div><dt>Ukuran</dt><dd>${file.dir ? "-" : size(file.size)}</dd></div>
+    <div><dt>Diubah</dt><dd>${date(file.modified)}</dd></div>`;
   $("previewBody").replaceChildren(message("Memuat preview..."));
   $("previewDownload").onclick = () => download(file);
   $("previewDialog").showModal();
@@ -294,6 +298,19 @@ function size(n) {
   if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
   return `${(n / 1073741824).toFixed(1)} GB`;
+}
+
+function date(seconds) {
+  if (!seconds) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(seconds * 1000));
+}
+
+function kind(name) {
+  const ext = name.includes(".") ? name.split(".").pop().toUpperCase() : "FILE";
+  return `${ext} file`;
 }
 
 function formatBytes(n) {

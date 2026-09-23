@@ -412,6 +412,30 @@ button:hover,
   overflow-wrap: anywhere;
 }
 
+#previewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 6px 0 0;
+}
+
+#previewMeta div {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+#previewMeta dt,
+#previewMeta dd {
+  margin: 0;
+}
+
+#previewMeta dt {
+  font-weight: 700;
+}
+
 #previewBody {
   display: grid;
   place-items: center;
