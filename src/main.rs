@@ -60,6 +60,13 @@ struct Entry {
     modified: u64,
 }
 
+#[derive(Serialize)]
+struct StorageInfo {
+    total: u64,
+    used: u64,
+    free: u64,
+}
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let root = PathBuf::from(env::var("DRIVE_ROOT").unwrap_or_else(|_| "./drive".into()));
@@ -78,6 +85,7 @@ async fn main() -> io::Result<()> {
         .route("/app.js", get(js))
         .route("/style.css", get(css))
         .route("/api/list", get(list))
+        .route("/api/storage", get(storage))
         .route("/api/mkdir", post(mkdir))
         .route("/api/rename", post(rename))
         .route("/api/delete", delete(remove))
@@ -140,6 +148,14 @@ async fn list(
 
     out.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.name.cmp(&b.name)));
     Ok(Json(out))
+}
+
+async fn storage(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<StorageInfo>, Response> {
+    auth(&state, &headers)?;
+    storage_info(&state.root).map(Json).map_err(err)
 }
 
 async fn mkdir(
@@ -362,6 +378,33 @@ fn content_type(path: &Path) -> &'static str {
         "wav" => "audio/wav",
         _ => "application/octet-stream",
     }
+}
+
+#[cfg(target_family = "unix")]
+fn storage_info(root: &Path) -> io::Result<StorageInfo> {
+    let c_path = std::ffi::CString::new(root.to_string_lossy().as_bytes())?;
+    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    let rc = unsafe { libc::statvfs(c_path.as_ptr(), stat.as_mut_ptr()) };
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let stat = unsafe { stat.assume_init() };
+    let total = stat.f_blocks as u64 * stat.f_frsize as u64;
+    let free = stat.f_bavail as u64 * stat.f_frsize as u64;
+    Ok(StorageInfo {
+        total,
+        free,
+        used: total.saturating_sub(free),
+    })
+}
+
+#[cfg(not(target_family = "unix"))]
+fn storage_info(_root: &Path) -> io::Result<StorageInfo> {
+    Ok(StorageInfo {
+        total: 0,
+        used: 0,
+        free: 0,
+    })
 }
 
 fn parse_range(headers: &HeaderMap, len: u64) -> Option<(u64, u64)> {

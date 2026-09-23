@@ -489,6 +489,7 @@ name = "tegar-drive"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "libc",
  "serde",
  "tokio",
  "tokio-util",

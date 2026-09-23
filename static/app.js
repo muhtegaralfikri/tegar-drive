@@ -98,6 +98,12 @@ function initDrive() {
     location.href = "/login";
   };
   $("search").oninput = render;
+  $("sortBy").onchange = render;
+  $("sortDir").onclick = () => {
+    $("sortDir").dataset.desc = $("sortDir").dataset.desc === "true" ? "false" : "true";
+    $("sortDir").textContent = $("sortDir").dataset.desc === "true" ? "Z-A" : "A-Z";
+    render();
+  };
   $("uploadInput").onchange = (e) => upload(e.target.files);
   $("upBtn").onclick = () => {
     cwd = cwd.split("/").slice(0, -1).join("/");
@@ -109,6 +115,7 @@ function initDrive() {
     upload(e.dataTransfer.files);
   };
   load();
+  loadStorage();
 }
 
 async function load() {
@@ -123,10 +130,40 @@ async function load() {
   render();
 }
 
+async function loadStorage() {
+  const res = await api("/api/storage");
+  if (!res.ok) return;
+  const info = await res.json();
+  const percent = info.total ? Math.round((info.used / info.total) * 100) : 0;
+  $("storageUsed").textContent = `${percent}% digunakan`;
+  $("storageText").textContent = `${formatBytes(info.used)} / ${formatBytes(info.total)} · sisa ${formatBytes(info.free)}`;
+  $("storageProgress").value = percent;
+}
+
 function render() {
   const q = $("search").value.trim().toLowerCase();
-  const shown = q ? entries.filter((f) => f.name.toLowerCase().includes(q)) : entries;
+  const shown = q ? entries.filter((f) => f.name.toLowerCase().includes(q)) : [...entries];
+  shown.sort(compareFiles);
   $("files").replaceChildren(...shown.map(row));
+}
+
+function compareFiles(a, b) {
+  const dir = b.dir - a.dir;
+  if (dir) return dir;
+
+  const desc = $("sortDir").dataset.desc === "true";
+  const by = $("sortBy").value;
+  let result;
+  if (by === "modified") {
+    result = a.modified - b.modified;
+  } else if (by === "size") {
+    result = a.size - b.size;
+  } else if (by === "type") {
+    result = kind(a.name).localeCompare(kind(b.name), "id");
+  } else {
+    result = a.name.localeCompare(b.name, "id", { numeric: true, sensitivity: "base" });
+  }
+  return desc ? -result : result;
 }
 
 function row(file) {
@@ -210,6 +247,7 @@ function upload(files) {
       showUpload(files, 100, "Upload selesai.");
       $("uploadInput").value = "";
       load();
+      loadStorage();
       setTimeout(hideUpload, 1200);
     } else {
       showUpload(files, 0, `Upload gagal: ${xhr.responseText || xhr.status}`);

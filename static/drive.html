@@ -36,9 +36,25 @@
               <h2>Files</h2>
               <p>Kelola folder dan file di HDD STB</p>
             </div>
+            <section class="storage-card">
+              <div>
+                <strong id="storageUsed">-</strong>
+                <small id="storageText">Memuat storage...</small>
+              </div>
+              <progress id="storageProgress" value="0" max="100"></progress>
+            </section>
             <div class="search-wrap">
               <span data-icon="search"></span>
               <input id="search" placeholder="Cari file..." />
+            </div>
+            <div class="sort-wrap">
+              <select id="sortBy" title="Urutkan">
+                <option value="name">Nama</option>
+                <option value="modified">Tanggal</option>
+                <option value="size">Ukuran</option>
+                <option value="type">Tipe</option>
+              </select>
+              <button id="sortDir" class="icon-btn" title="Balik urutan">A-Z</button>
             </div>
           </div>
 
