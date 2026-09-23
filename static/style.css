@@ -903,11 +903,50 @@ input,
   .file {
     grid-template-columns: minmax(0, 1fr) 38px;
     min-height: 48px;
+    overflow: visible;
+  }
+
+  .file .name {
+    min-width: 0;
+  }
+
+  .file .name > span:last-child {
+    min-width: 0;
+  }
+
+  .file .name strong,
+  .file .name small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .file-size,
   .file-date {
     display: none;
+  }
+
+  .row-menu {
+    position: static;
+  }
+
+  .row-menu summary {
+    width: 34px;
+    height: 34px;
+  }
+
+  .menu-panel {
+    position: fixed;
+    right: 8px;
+    left: auto;
+    top: auto;
+    bottom: 8px;
+    width: min(220px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
+  }
+
+  .menu-panel button {
+    min-height: 38px;
   }
 }
 
