@@ -16,7 +16,8 @@ use std::{
 use tokio::{fs, io::AsyncWriteExt, net::TcpListener};
 use tokio_util::io::ReaderStream;
 
-const INDEX: &str = include_str!("../static/index.html");
+const LOGIN: &str = include_str!("../static/login.html");
+const DRIVE: &str = include_str!("../static/drive.html");
 const JS: &str = include_str!("../static/app.js");
 const CSS: &str = include_str!("../static/style.css");
 
@@ -65,7 +66,9 @@ async fn main() -> io::Result<()> {
     };
 
     let app = Router::new()
-        .route("/", get(index))
+        .route("/", get(login_page))
+        .route("/login", get(login_page))
+        .route("/drive", get(drive_page))
         .route("/app.js", get(js))
         .route("/style.css", get(css))
         .route("/api/list", get(list))
@@ -82,8 +85,12 @@ async fn main() -> io::Result<()> {
     axum::serve(listener, app).await
 }
 
-async fn index() -> Html<&'static str> {
-    Html(INDEX)
+async fn login_page() -> Html<&'static str> {
+    Html(LOGIN)
+}
+
+async fn drive_page() -> Html<&'static str> {
+    Html(DRIVE)
 }
 
 async fn js() -> impl IntoResponse {

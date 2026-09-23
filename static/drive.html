@@ -3,40 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tegar Drive</title>
-    <link rel="stylesheet" href="/style.css" />
+    <title>Drive - Tegar Drive</title>
+    <link rel="stylesheet" href="/style.css?v=5" />
   </head>
-  <body data-view="login">
-    <main id="login" class="login-screen">
-      <section class="login-card">
-        <div class="brand">
-          <div class="brand-icon" data-icon="hard-drive"></div>
-          <div>
-            <h1>Tegar Drive</h1>
-            <p>Private file storage</p>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>User</label>
-          <input id="user" autocomplete="username" placeholder="tegar" value="tegar" />
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <div class="password-wrap">
-            <input id="password" autocomplete="current-password" placeholder="Password" type="password" />
-            <button id="togglePassword" class="input-icon" type="button" title="Tampilkan password"></button>
-          </div>
-        </div>
-        <p id="loginError" class="error" hidden></p>
-        <button id="loginBtn" class="primary">
-          <span class="spinner" hidden></span>
-          <span id="loginText">Masuk</span>
-        </button>
-      </section>
-    </main>
-
-    <main id="app" class="app-shell" hidden>
+  <body>
+    <main class="app-shell">
       <header class="topbar">
         <div class="identity">
           <div class="brand-icon small" data-icon="hard-drive"></div>
@@ -81,6 +52,6 @@
       </section>
     </main>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=5"></script>
   </body>
 </html>
