@@ -39,9 +39,12 @@ async function load() {
   const res = await api(`/api/list?path=${encodeURIComponent(cwd)}`);
   if (res.status === 401) {
     localStorage.removeItem("drive-auth");
+    $("loginError").textContent = "User atau password salah.";
+    $("loginError").hidden = false;
     showApp(false);
     return;
   }
+  $("loginError").hidden = true;
   entries = await res.json();
   $("crumb").textContent = "/" + cwd;
   render();
@@ -143,9 +146,15 @@ function size(n) {
 }
 
 $("loginBtn").onclick = () => {
-  auth = { user: $("user").value, password: $("password").value };
+  auth = { user: $("user").value.trim(), password: $("password").value.trim() };
   localStorage.setItem("drive-auth", JSON.stringify(auth));
   load();
+};
+$("password").onkeydown = (e) => {
+  if (e.key === "Enter") $("loginBtn").click();
+};
+$("user").onkeydown = (e) => {
+  if (e.key === "Enter") $("password").focus();
 };
 $("logoutBtn").onclick = () => {
   localStorage.removeItem("drive-auth");
