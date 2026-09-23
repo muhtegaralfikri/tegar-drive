@@ -1,6 +1,6 @@
 let cwd = "";
 let entries = [];
-let auth = JSON.parse(localStorage.getItem("drive-auth") || "null");
+let trashMode = false;
 
 const icons = {
   "arrow-up": '<svg viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>',
@@ -25,11 +25,7 @@ const icon = (name) => icons[name] || "";
 const api = (path, opts = {}) =>
   fetch(path, {
     ...opts,
-    headers: {
-      "x-drive-user": auth?.user || "",
-      "x-drive-password": auth?.password || "",
-      ...(opts.headers || {}),
-    },
+    headers: opts.headers || {},
   });
 
 document.querySelectorAll("[data-icon]").forEach((el) => {
@@ -58,17 +54,18 @@ function initLogin() {
 async function login() {
   $("loginError").hidden = true;
   setLoginLoading(true);
-  auth = { user: $("user").value.trim(), password: $("password").value.trim() };
-  localStorage.setItem("drive-auth", JSON.stringify(auth));
 
   try {
-    const res = await api("/api/list");
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ user: $("user").value.trim(), password: $("password").value.trim() }),
+    });
     if (res.status === 401) {
       throw new Error("User atau password salah.");
     }
     location.href = "/drive";
   } catch (err) {
-    localStorage.removeItem("drive-auth");
     $("loginError").textContent = err.message || "Gagal terhubung ke server.";
     $("loginError").hidden = false;
     setLoginLoading(false);
@@ -82,19 +79,21 @@ function setLoginLoading(on) {
 }
 
 function initDrive() {
-  if (!auth) {
-    location.href = "/login";
-    return;
-  }
   $("newFolderBtn").onclick = mkdir;
   $("newFolderBtn").innerHTML = `${icon("folder-plus")} <span>Folder</span>`;
   $("upBtn").innerHTML = `${icon("arrow-up")} <span>Naik</span>`;
+  $("trashBtn").innerHTML = `${icon("trash")} <span>Trash</span>`;
+  $("trashBtn").onclick = () => {
+    trashMode = !trashMode;
+    cwd = "";
+    load();
+  };
   $("logoutBtn").innerHTML = icon("logout");
   $("closePreview").innerHTML = icon("x");
   $("closePreview").onclick = closePreview;
   $("previewDialog").addEventListener("close", clearPreview);
-  $("logoutBtn").onclick = () => {
-    localStorage.removeItem("drive-auth");
+  $("logoutBtn").onclick = async () => {
+    await api("/api/logout", { method: "POST" });
     location.href = "/login";
   };
   $("search").oninput = render;
@@ -119,14 +118,16 @@ function initDrive() {
 }
 
 async function load() {
-  const res = await api(`/api/list?path=${encodeURIComponent(cwd)}`);
+  const res = await api(trashMode ? "/api/trash" : `/api/list?path=${encodeURIComponent(cwd)}`);
   if (res.status === 401) {
-    localStorage.removeItem("drive-auth");
     location.href = "/login";
     return;
   }
   entries = await res.json();
-  $("crumb").textContent = "/" + cwd;
+  $("crumb").textContent = trashMode ? "/Trash" : "/" + cwd;
+  $("upBtn").disabled = trashMode;
+  $("newFolderBtn").disabled = trashMode;
+  $("trashBtn").classList.toggle("primary", trashMode);
   render();
 }
 
@@ -178,12 +179,16 @@ function row(file) {
       </span>
     </button>
     <div class="actions">
-      ${file.dir ? "" : `<button class="ghost" data-act="download" title="Download">${icon("download")}</button>`}
-      <button class="ghost" data-act="rename" title="Rename">${icon("pencil")}</button>
-      <button class="ghost danger" data-act="delete" title="Hapus">${icon("trash")}</button>
+      ${trashMode ? `<button class="ghost" data-act="restore" title="Restore">${icon("arrow-up")}</button>` : ""}
+      ${file.dir || trashMode ? "" : `<button class="ghost" data-act="download" title="Download">${icon("download")}</button>`}
+      ${trashMode ? "" : `<button class="ghost" data-act="rename" title="Rename">${icon("pencil")}</button>`}
+      <button class="ghost danger" data-act="delete" title="${trashMode ? "Hapus permanen" : "Hapus"}">${icon("trash")}</button>
     </div>`;
 
   el.querySelector(".name").onclick = () => {
+    if (trashMode) {
+      return;
+    }
     if (file.dir) {
       cwd = file.path;
       load();
@@ -192,8 +197,9 @@ function row(file) {
     }
   };
   el.querySelector('[data-act="download"]')?.addEventListener("click", () => download(file));
-  el.querySelector('[data-act="rename"]').onclick = () => rename(file);
-  el.querySelector('[data-act="delete"]').onclick = () => remove(file);
+  el.querySelector('[data-act="rename"]')?.addEventListener("click", () => rename(file));
+  el.querySelector('[data-act="restore"]')?.addEventListener("click", () => restore(file));
+  el.querySelector('[data-act="delete"]').onclick = () => (trashMode ? removeForever(file) : remove(file));
   return el;
 }
 
@@ -220,9 +226,27 @@ async function rename(file) {
 }
 
 async function remove(file) {
-  if (!confirm(`Hapus ${file.name}?`)) return;
+  if (!confirm(`Pindahkan ${file.name} ke Trash?`)) return;
   await api(`/api/delete?path=${encodeURIComponent(file.path)}`, { method: "DELETE" });
   load();
+  loadStorage();
+}
+
+async function restore(file) {
+  await api("/api/trash/restore", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: file.path }),
+  });
+  load();
+  loadStorage();
+}
+
+async function removeForever(file) {
+  if (!confirm(`Hapus permanen ${file.name}?`)) return;
+  await api(`/api/trash/delete?path=${encodeURIComponent(file.path)}`, { method: "DELETE" });
+  load();
+  loadStorage();
 }
 
 function upload(files) {
@@ -233,8 +257,6 @@ function upload(files) {
   for (const file of files) form.append("file", file);
   const xhr = new XMLHttpRequest();
   xhr.open("POST", `/api/upload?path=${encodeURIComponent(cwd)}`);
-  xhr.setRequestHeader("x-drive-user", auth?.user || "");
-  xhr.setRequestHeader("x-drive-password", auth?.password || "");
 
   showUpload(files, 0, "Menghubungkan...");
   xhr.upload.onprogress = (event) => {
@@ -315,11 +337,7 @@ async function preview(file) {
 }
 
 function viewUrl(path) {
-  const params = new URLSearchParams({
-    path,
-    user: auth?.user || "",
-    password: auth?.password || "",
-  });
+  const params = new URLSearchParams({ path });
   return `/view?${params.toString()}`;
 }
 

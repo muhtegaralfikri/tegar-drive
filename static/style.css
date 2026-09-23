@@ -538,7 +538,7 @@ svg {
   }
 
   .sidebar {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
     padding: 6px;
   }
 
@@ -563,7 +563,7 @@ svg {
   }
 
   .sidebar {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .side-action:first-child {

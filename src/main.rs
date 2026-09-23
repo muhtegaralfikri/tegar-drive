@@ -1,3 +1,7 @@
+use argon2::{
+    Argon2,
+    password_hash::{PasswordHash, PasswordVerifier},
+};
 use axum::{
     Json, Router,
     body::Body,
@@ -8,10 +12,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     env, io,
     path::{Component, Path, PathBuf},
-    sync::Arc,
-    time::UNIX_EPOCH,
+    sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     fs,
@@ -30,13 +35,19 @@ struct AppState {
     root: Arc<PathBuf>,
     user: Arc<String>,
     password: Arc<String>,
+    password_hash: Arc<Option<String>>,
+    sessions: Arc<Mutex<HashMap<String, u64>>>,
 }
 
 #[derive(Deserialize)]
 struct PathQuery {
     path: Option<String>,
-    user: Option<String>,
-    password: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct LoginReq {
+    user: String,
+    password: String,
 }
 
 #[derive(Deserialize)]
@@ -51,6 +62,11 @@ struct RenameReq {
     to: String,
 }
 
+#[derive(Deserialize)]
+struct RestoreReq {
+    path: String,
+}
+
 #[derive(Serialize)]
 struct Entry {
     name: String,
@@ -58,6 +74,8 @@ struct Entry {
     dir: bool,
     size: u64,
     modified: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    original_path: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -75,7 +93,9 @@ async fn main() -> io::Result<()> {
     let state = AppState {
         root: Arc::new(root.canonicalize()?),
         user: Arc::new(env::var("DRIVE_USER").unwrap_or_else(|_| "tegar".into())),
-        password: Arc::new(env::var("DRIVE_PASSWORD").unwrap_or_else(|_| "change-me".into())),
+        password: Arc::new(env::var("DRIVE_PASSWORD").unwrap_or_default()),
+        password_hash: Arc::new(env::var("DRIVE_PASSWORD_HASH").ok()),
+        sessions: Arc::new(Mutex::new(HashMap::new())),
     };
 
     let app = Router::new()
@@ -84,11 +104,16 @@ async fn main() -> io::Result<()> {
         .route("/drive", get(drive_page))
         .route("/app.js", get(js))
         .route("/style.css", get(css))
+        .route("/api/login", post(login))
+        .route("/api/logout", post(logout))
         .route("/api/list", get(list))
         .route("/api/storage", get(storage))
         .route("/api/mkdir", post(mkdir))
         .route("/api/rename", post(rename))
         .route("/api/delete", delete(remove))
+        .route("/api/trash", get(trash))
+        .route("/api/trash/restore", post(restore))
+        .route("/api/trash/delete", delete(remove_forever))
         .route("/api/upload", post(upload))
         .route("/view", get(view))
         .route("/download", get(download))
@@ -117,6 +142,48 @@ async fn css() -> impl IntoResponse {
     typed(CSS, "text/css")
 }
 
+async fn login(
+    State(state): State<AppState>,
+    Json(req): Json<LoginReq>,
+) -> Result<Response, Response> {
+    if req.user != state.user.as_str() || !verify_password(&state, &req.password) {
+        return Err((StatusCode::UNAUTHORIZED, "login salah").into_response());
+    }
+
+    let token = session_token().map_err(err)?;
+    let expires = now() + 60 * 60 * 24 * 30;
+    state
+        .sessions
+        .lock()
+        .map_err(err)?
+        .insert(token.clone(), expires);
+
+    let mut res = StatusCode::NO_CONTENT.into_response();
+    res.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_str(&format!(
+            "td_session={token}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
+        ))
+        .map_err(err)?,
+    );
+    Ok(res)
+}
+
+async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    if let Some(token) = cookie(&headers, "td_session") {
+        if let Ok(mut sessions) = state.sessions.lock() {
+            sessions.remove(token);
+        }
+    }
+
+    let mut res = StatusCode::NO_CONTENT.into_response();
+    res.headers_mut().insert(
+        header::SET_COOKIE,
+        HeaderValue::from_static("td_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"),
+    );
+    res
+}
+
 async fn list(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -124,13 +191,16 @@ async fn list(
 ) -> Result<Json<Vec<Entry>>, Response> {
     auth(&state, &headers)?;
     let rel = q.path.unwrap_or_default();
-    let dir = resolve(&state.root, &rel)?;
+    let dir = resolve_existing(&state.root, &rel).await?;
     let mut rd = fs::read_dir(&dir).await.map_err(err)?;
     let mut out = Vec::new();
 
     while let Some(item) = rd.next_entry().await.map_err(err)? {
         let meta = item.metadata().await.map_err(err)?;
         let name = item.file_name().to_string_lossy().to_string();
+        if rel.is_empty() && name == ".trash" {
+            continue;
+        }
         let path = join_rel(&rel, &name);
         let modified = meta
             .modified()
@@ -143,6 +213,7 @@ async fn list(
             dir: meta.is_dir(),
             size: meta.len(),
             modified,
+            original_path: None,
         });
     }
 
@@ -165,9 +236,8 @@ async fn mkdir(
 ) -> Result<StatusCode, Response> {
     auth(&state, &headers)?;
     let name = clean_name(&req.name)?;
-    fs::create_dir(resolve(&state.root, &join_rel(&req.path, &name))?)
-        .await
-        .map_err(err)?;
+    let parent = resolve_existing(&state.root, &req.path).await?;
+    fs::create_dir(parent.join(name)).await.map_err(err)?;
     Ok(StatusCode::CREATED)
 }
 
@@ -177,12 +247,14 @@ async fn rename(
     Json(req): Json<RenameReq>,
 ) -> Result<StatusCode, Response> {
     auth(&state, &headers)?;
-    let from = resolve(&state.root, &req.path)?;
+    let from = resolve_existing(&state.root, &req.path).await?;
     let parent = Path::new(&req.path)
         .parent()
         .and_then(Path::to_str)
         .unwrap_or("");
-    let to = resolve(&state.root, &join_rel(parent, &clean_name(&req.to)?))?;
+    let to = resolve_existing(&state.root, parent)
+        .await?
+        .join(clean_name(&req.to)?);
     fs::rename(from, to).await.map_err(err)?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -193,13 +265,113 @@ async fn remove(
     Query(q): Query<PathQuery>,
 ) -> Result<StatusCode, Response> {
     auth(&state, &headers)?;
-    let target = resolve(&state.root, q.path.as_deref().unwrap_or(""))?;
+    let rel = q.path.as_deref().unwrap_or("");
+    if rel.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "path tidak valid").into_response());
+    }
+    let target = resolve_existing(&state.root, rel).await?;
+    let trash_dir = state.root.join(".trash");
+    let meta_dir = trash_dir.join(".meta");
+    fs::create_dir_all(&meta_dir).await.map_err(err)?;
+    let name = Path::new(rel)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file");
+    let trash_name = unique_trash_name(name);
+    fs::write(meta_dir.join(&trash_name), rel)
+        .await
+        .map_err(err)?;
+    fs::rename(target, trash_dir.join(trash_name))
+        .await
+        .map_err(err)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn trash(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<Entry>>, Response> {
+    auth(&state, &headers)?;
+    let trash_dir = state.root.join(".trash");
+    fs::create_dir_all(trash_dir.join(".meta"))
+        .await
+        .map_err(err)?;
+    let mut rd = fs::read_dir(&trash_dir).await.map_err(err)?;
+    let mut out = Vec::new();
+
+    while let Some(item) = rd.next_entry().await.map_err(err)? {
+        let meta = item.metadata().await.map_err(err)?;
+        let name = item.file_name().to_string_lossy().to_string();
+        if name == ".meta" {
+            continue;
+        }
+        let modified = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map_or(0, |d| d.as_secs());
+        let original_path = fs::read_to_string(trash_dir.join(".meta").join(&name))
+            .await
+            .ok();
+        out.push(Entry {
+            name: display_trash_name(&name),
+            path: name,
+            dir: meta.is_dir(),
+            size: meta.len(),
+            modified,
+            original_path,
+        });
+    }
+
+    out.sort_by(|a, b| b.modified.cmp(&a.modified));
+    Ok(Json(out))
+}
+
+async fn restore(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<RestoreReq>,
+) -> Result<StatusCode, Response> {
+    auth(&state, &headers)?;
+    let name = clean_name(&req.path)?;
+    let trash_dir = state.root.join(".trash");
+    let from = trash_dir.join(&name);
+    let original = fs::read_to_string(trash_dir.join(".meta").join(&name))
+        .await
+        .map_err(err)?;
+    let parent = Path::new(&original)
+        .parent()
+        .and_then(Path::to_str)
+        .unwrap_or("");
+    let file_name = Path::new(&original)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "path tidak valid").into_response())?;
+    let parent_dir = resolve_existing(&state.root, parent)
+        .await
+        .unwrap_or_else(|_| state.root.as_ref().clone());
+    let to = unique_path(&parent_dir, file_name).await?;
+    fs::rename(from, to).await.map_err(err)?;
+    let _ = fs::remove_file(trash_dir.join(".meta").join(name)).await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn remove_forever(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<PathQuery>,
+) -> Result<StatusCode, Response> {
+    auth(&state, &headers)?;
+    let name = clean_name(q.path.as_deref().unwrap_or(""))?;
+    let trash_dir = state.root.join(".trash");
+    let target = trash_dir.join(&name);
     let meta = fs::metadata(&target).await.map_err(err)?;
     if meta.is_dir() {
         fs::remove_dir_all(target).await.map_err(err)?;
     } else {
         fs::remove_file(target).await.map_err(err)?;
     }
+    let _ = fs::remove_file(trash_dir.join(".meta").join(name)).await;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -210,16 +382,21 @@ async fn upload(
     mut multipart: Multipart,
 ) -> Result<StatusCode, Response> {
     auth(&state, &headers)?;
-    let dir = resolve(&state.root, q.path.as_deref().unwrap_or(""))?;
+    let dir = resolve_existing(&state.root, q.path.as_deref().unwrap_or("")).await?;
 
     while let Some(mut field) = multipart.next_field().await.map_err(err)? {
         let Some(name) = field.file_name().map(clean_name).transpose()? else {
             continue;
         };
-        let mut file = fs::File::create(dir.join(name)).await.map_err(err)?;
+        let final_path = unique_path(&dir, &name).await?;
+        let temp_path = dir.join(format!(".{}.uploading-{}", name, now()));
+        let mut file = fs::File::create(&temp_path).await.map_err(err)?;
         while let Some(chunk) = field.chunk().await.map_err(err)? {
             file.write_all(&chunk).await.map_err(err)?;
         }
+        file.sync_all().await.map_err(err)?;
+        drop(file);
+        fs::rename(temp_path, final_path).await.map_err(err)?;
     }
 
     Ok(StatusCode::CREATED)
@@ -232,14 +409,20 @@ async fn download(
 ) -> Result<Response, Response> {
     auth(&state, &headers)?;
     let path = q.path.unwrap_or_default();
-    let target = resolve(&state.root, &path)?;
+    let target = resolve_existing(&state.root, &path).await?;
     let file = fs::File::open(&target).await.map_err(err)?;
-    let name = target.file_name().and_then(|n| n.to_str()).unwrap_or("download");
+    let name = target
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("download");
     let mut res = Body::from_stream(ReaderStream::new(file)).into_response();
     res.headers_mut().insert(
         header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&format!("attachment; filename=\"{}\"", name.replace('"', "")))
-            .map_err(err)?,
+        HeaderValue::from_str(&format!(
+            "attachment; filename=\"{}\"",
+            name.replace('"', "")
+        ))
+        .map_err(err)?,
     );
     Ok(res)
 }
@@ -249,19 +432,17 @@ async fn view(
     headers: HeaderMap,
     Query(q): Query<PathQuery>,
 ) -> Result<Response, Response> {
-    if q.user.as_deref() != Some(state.user.as_str())
-        || q.password.as_deref() != Some(state.password.as_str())
-    {
-        auth(&state, &headers)?;
-    }
+    auth(&state, &headers)?;
     let path = q.path.unwrap_or_default();
-    let target = resolve(&state.root, &path)?;
+    let target = resolve_existing(&state.root, &path).await?;
     let mut file = fs::File::open(&target).await.map_err(err)?;
     let len = file.metadata().await.map_err(err)?.len();
     let content_type = content_type(&target);
 
     if let Some((start, end)) = parse_range(&headers, len) {
-        file.seek(std::io::SeekFrom::Start(start)).await.map_err(err)?;
+        file.seek(std::io::SeekFrom::Start(start))
+            .await
+            .map_err(err)?;
         let stream = ReaderStream::new(file.take(end - start + 1));
         let mut res = Body::from_stream(stream).into_response();
         *res.status_mut() = StatusCode::PARTIAL_CONTENT;
@@ -281,10 +462,8 @@ async fn view(
     }
 
     let mut res = Body::from_stream(ReaderStream::new(file)).into_response();
-    res.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static(content_type),
-    );
+    res.headers_mut()
+        .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     res.headers_mut()
         .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
     res.headers_mut().insert(
@@ -295,18 +474,76 @@ async fn view(
 }
 
 fn auth(state: &AppState, headers: &HeaderMap) -> Result<(), Response> {
-    let user = headers
-        .get("x-drive-user")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    let password = headers
-        .get("x-drive-password")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if user == state.user.as_str() && password == state.password.as_str() {
-        Ok(())
+    let Some(token) = cookie(headers, "td_session") else {
+        return Err((StatusCode::UNAUTHORIZED, "login salah").into_response());
+    };
+    let mut sessions = state.sessions.lock().map_err(err)?;
+    match sessions.get(token).copied() {
+        Some(expires) if expires > now() => Ok(()),
+        Some(_) => {
+            sessions.remove(token);
+            Err((StatusCode::UNAUTHORIZED, "session habis").into_response())
+        }
+        None => Err((StatusCode::UNAUTHORIZED, "login salah").into_response()),
+    }
+}
+
+fn verify_password(state: &AppState, password: &str) -> bool {
+    if let Some(hash) = state.password_hash.as_deref() {
+        let Ok(parsed) = PasswordHash::new(hash) else {
+            return false;
+        };
+        Argon2::default()
+            .verify_password(password.as_bytes(), &parsed)
+            .is_ok()
     } else {
-        Err((StatusCode::UNAUTHORIZED, "login salah").into_response())
+        !state.password.is_empty() && password == state.password.as_str()
+    }
+}
+
+fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers
+        .get(header::COOKIE)?
+        .to_str()
+        .ok()?
+        .split(';')
+        .filter_map(|part| part.trim().split_once('='))
+        .find_map(|(key, value)| (key == name).then_some(value))
+}
+
+fn session_token() -> io::Result<String> {
+    let mut bytes = [0u8; 32];
+    #[cfg(target_family = "unix")]
+    {
+        use std::io::Read;
+        std::fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;
+    }
+    #[cfg(not(target_family = "unix"))]
+    {
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        bytes[..16].copy_from_slice(&seed.to_le_bytes());
+        bytes[16..].copy_from_slice(&(std::process::id() as u128).to_le_bytes());
+    }
+    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+fn now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+async fn resolve_existing(root: &Path, rel: &str) -> Result<PathBuf, Response> {
+    let path = resolve(root, rel)?;
+    let path = path.canonicalize().map_err(err)?;
+    if path.starts_with(root) {
+        Ok(path)
+    } else {
+        Err((StatusCode::BAD_REQUEST, "path tidak valid").into_response())
     }
 }
 
@@ -337,6 +574,47 @@ fn join_rel(parent: &str, name: &str) -> String {
     } else {
         format!("{}/{}", parent.trim_end_matches('/'), name)
     }
+}
+
+async fn unique_path(dir: &Path, name: &str) -> Result<PathBuf, Response> {
+    let path = dir.join(name);
+    if !path.try_exists().map_err(err)? {
+        return Ok(path);
+    }
+
+    let (stem, ext) = split_name(name);
+    for i in 1..10_000 {
+        let candidate = if ext.is_empty() {
+            dir.join(format!("{stem} ({i})"))
+        } else {
+            dir.join(format!("{stem} ({i}).{ext}"))
+        };
+        if !candidate.try_exists().map_err(err)? {
+            return Ok(candidate);
+        }
+    }
+    Err((StatusCode::CONFLICT, "terlalu banyak file dengan nama sama").into_response())
+}
+
+fn split_name(name: &str) -> (&str, &str) {
+    match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => (stem, ext),
+        _ => (name, ""),
+    }
+}
+
+fn unique_trash_name(name: &str) -> String {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("{stamp}-{name}")
+}
+
+fn display_trash_name(name: &str) -> String {
+    name.split_once('-')
+        .map_or(name, |(_, rest)| rest)
+        .to_string()
 }
 
 fn typed(body: &'static str, content_type: &'static str) -> impl IntoResponse {
