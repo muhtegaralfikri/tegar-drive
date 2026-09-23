@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tegar Drive</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body data-view="login">
+    <main id="login" class="login-screen">
+      <section class="login-card">
+        <div class="brand">
+          <div class="brand-icon" data-icon="hard-drive"></div>
+          <div>
+            <h1>Tegar Drive</h1>
+            <p>Private file storage</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>User</label>
+          <input id="user" autocomplete="username" placeholder="tegar" value="tegar" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="password" autocomplete="current-password" placeholder="Password" type="password" />
+        </div>
+        <button id="loginBtn" class="primary">Masuk</button>
+      </section>
+    </main>
+
+    <main id="app" class="app-shell" hidden>
+      <header class="topbar">
+        <div class="identity">
+          <div class="brand-icon small" data-icon="hard-drive"></div>
+          <div>
+            <h1>Tegar Drive</h1>
+            <p id="crumb">/</p>
+          </div>
+        </div>
+        <button id="logoutBtn" class="icon-btn" title="Keluar"></button>
+      </header>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <button id="upBtn" class="side-action"></button>
+          <button id="newFolderBtn" class="side-action primary"></button>
+          <label class="side-action upload">
+            <span data-icon="upload"></span>
+            <span>Upload</span>
+            <input id="uploadInput" type="file" multiple />
+          </label>
+        </aside>
+
+        <section class="content">
+          <div class="content-head">
+            <div>
+              <h2>Files</h2>
+              <p>Kelola folder dan file di HDD STB</p>
+            </div>
+            <div class="search-wrap">
+              <span data-icon="search"></span>
+              <input id="search" placeholder="Cari file..." />
+            </div>
+          </div>
+
+          <div id="drop">
+            <span data-icon="cloud-upload"></span>
+            <strong>Lepas file di sini</strong>
+            <small>atau gunakan tombol upload</small>
+          </div>
+          <section id="files"></section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
