@@ -21,7 +21,7 @@ if [ ! -f "$ENV_FILE" ]; then
   umask 077
   {
     echo "DRIVE_ROOT=/mnt/hdd/drive"
-    echo "DRIVE_ADDR=0.0.0.0:8083"
+    echo "DRIVE_ADDR=0.0.0.0:8084"
     echo "DRIVE_USER=${DRIVE_USER:-tegar}"
     echo "DRIVE_PASSWORD=${DRIVE_PASSWORD:-change-me}"
   } > "$ENV_FILE"
