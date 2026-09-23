@@ -23,10 +23,16 @@
         </div>
         <div class="field">
           <label>Password</label>
-          <input id="password" autocomplete="current-password" placeholder="Password" type="password" />
+          <div class="password-wrap">
+            <input id="password" autocomplete="current-password" placeholder="Password" type="password" />
+            <button id="togglePassword" class="input-icon" type="button" title="Tampilkan password"></button>
+          </div>
         </div>
         <p id="loginError" class="error" hidden></p>
-        <button id="loginBtn" class="primary">Masuk</button>
+        <button id="loginBtn" class="primary">
+          <span class="spinner" hidden></span>
+          <span id="loginText">Masuk</span>
+        </button>
       </section>
     </main>
 

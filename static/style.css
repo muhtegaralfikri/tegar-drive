@@ -18,10 +18,7 @@ body {
   display: grid;
   place-items: center;
   padding: 20px;
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), transparent 34%),
-    radial-gradient(circle at 85% 10%, rgba(14, 165, 233, 0.14), transparent 30%),
-    #f8fafc;
+  background: #f8fafc;
 }
 
 .login-card {
@@ -29,10 +26,10 @@ body {
   display: grid;
   gap: 14px;
   padding: 26px;
-  background: rgba(255, 255, 255, 0.94);
+  background: white;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
 }
 
 .app-shell {
@@ -131,6 +128,26 @@ input {
   padding: 0 12px;
 }
 
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap input {
+  padding-right: 46px;
+}
+
+.input-icon {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 38px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  color: #64748b;
+  transform: translateY(-50%);
+}
+
 input:focus {
   outline: 2px solid #99f6e4;
   border-color: #14b8a6;
@@ -152,6 +169,26 @@ button,
   border-color: #0f766e;
   color: white;
   font-weight: 700;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-top-color: white;
+  border-radius: 999px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 button:hover,

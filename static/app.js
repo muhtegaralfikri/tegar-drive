@@ -11,6 +11,8 @@ const icons = {
   "folder-plus": '<svg viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
   "hard-drive": '<svg viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>',
   logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+  eye: '<svg viewBox="0 0 24 24"><path d="M2.06 12.35a1 1 0 0 1 0-.7A11.8 11.8 0 0 1 12 5a11.8 11.8 0 0 1 9.94 6.65 1 1 0 0 1 0 .7A11.8 11.8 0 0 1 12 19a11.8 11.8 0 0 1-9.94-6.65Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  "eye-off": '<svg viewBox="0 0 24 24"><path d="m2 2 20 20"/><path d="M6.7 6.7A12.3 12.3 0 0 0 2.06 11.65a1 1 0 0 0 0 .7A11.8 11.8 0 0 0 12 19a10.8 10.8 0 0 0 4.2-.84"/><path d="M9.88 9.88A3 3 0 0 0 14.12 14.12"/><path d="M14.12 9.88A3 3 0 0 0 9.88 14.12"/><path d="M12 5a11.8 11.8 0 0 1 9.94 6.65 1 1 0 0 1 0 .7 12.5 12.5 0 0 1-2.01 2.9"/></svg>',
   pencil: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
@@ -29,10 +31,11 @@ const api = (path, opts = {}) =>
     },
   });
 
-function showApp(on) {
+function showApp(on, updateRoute = true) {
   $("login").hidden = on;
   $("app").hidden = !on;
   document.body.dataset.view = on ? "app" : "login";
+  if (updateRoute) location.hash = on ? "#/drive" : "#/login";
 }
 
 async function load() {
@@ -41,6 +44,7 @@ async function load() {
     localStorage.removeItem("drive-auth");
     $("loginError").textContent = "User atau password salah.";
     $("loginError").hidden = false;
+    setLoginLoading(false);
     showApp(false);
     return;
   }
@@ -49,6 +53,35 @@ async function load() {
   $("crumb").textContent = "/" + cwd;
   render();
   showApp(true);
+}
+
+async function login() {
+  $("loginError").hidden = true;
+  setLoginLoading(true);
+  auth = { user: $("user").value.trim(), password: $("password").value.trim() };
+  localStorage.setItem("drive-auth", JSON.stringify(auth));
+  try {
+    await load();
+  } catch {
+    $("loginError").textContent = "Gagal terhubung ke server.";
+    $("loginError").hidden = false;
+    localStorage.removeItem("drive-auth");
+    setLoginLoading(false);
+  }
+}
+
+function setLoginLoading(on) {
+  $("loginBtn").disabled = on;
+  document.querySelector(".spinner").hidden = !on;
+  $("loginText").textContent = on ? "Memeriksa..." : "Masuk";
+}
+
+function route() {
+  if (location.hash === "#/drive" && auth) {
+    load();
+  } else {
+    showApp(false, false);
+  }
 }
 
 function render() {
@@ -145,11 +178,7 @@ function size(n) {
   return `${(n / 1073741824).toFixed(1)} GB`;
 }
 
-$("loginBtn").onclick = () => {
-  auth = { user: $("user").value.trim(), password: $("password").value.trim() };
-  localStorage.setItem("drive-auth", JSON.stringify(auth));
-  load();
-};
+$("loginBtn").onclick = login;
 $("password").onkeydown = (e) => {
   if (e.key === "Enter") $("loginBtn").click();
 };
@@ -165,6 +194,13 @@ $("newFolderBtn").onclick = mkdir;
 $("newFolderBtn").innerHTML = `${icon("folder-plus")} <span>Folder</span>`;
 $("upBtn").innerHTML = `${icon("arrow-up")} <span>Naik</span>`;
 $("logoutBtn").innerHTML = icon("logout");
+$("togglePassword").innerHTML = icon("eye");
+$("togglePassword").onclick = () => {
+  const input = $("password");
+  const visible = input.type === "text";
+  input.type = visible ? "password" : "text";
+  $("togglePassword").innerHTML = icon(visible ? "eye" : "eye-off");
+};
 $("search").oninput = render;
 $("uploadInput").onchange = (e) => upload(e.target.files);
 $("upBtn").onclick = () => {
@@ -181,4 +217,6 @@ document.querySelectorAll("[data-icon]").forEach((el) => {
   el.innerHTML = icon(el.dataset.icon);
 });
 
-if (auth) load();
+window.addEventListener("hashchange", route);
+if (!location.hash) location.hash = auth ? "#/drive" : "#/login";
+route();
