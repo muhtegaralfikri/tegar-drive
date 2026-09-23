@@ -280,6 +280,33 @@ button:hover,
   gap: 6px;
 }
 
+#uploadPanel {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #ccfbf1;
+  border-radius: 8px;
+  background: #f0fdfa;
+}
+
+#uploadPanel[hidden] {
+  display: none;
+}
+
+#uploadPanel > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#uploadProgress {
+  width: 100%;
+  height: 10px;
+  accent-color: #0f766e;
+}
+
 .file {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

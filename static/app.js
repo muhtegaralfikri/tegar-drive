@@ -188,11 +188,35 @@ async function remove(file) {
   load();
 }
 
-async function upload(files) {
+function upload(files) {
+  files = Array.from(files || []);
+  if (!files.length) return;
+
   const form = new FormData();
   for (const file of files) form.append("file", file);
-  await api(`/api/upload?path=${encodeURIComponent(cwd)}`, { method: "POST", body: form });
-  load();
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", `/api/upload?path=${encodeURIComponent(cwd)}`);
+  xhr.setRequestHeader("x-drive-user", auth?.user || "");
+  xhr.setRequestHeader("x-drive-password", auth?.password || "");
+
+  showUpload(files, 0, "Menghubungkan...");
+  xhr.upload.onprogress = (event) => {
+    if (!event.lengthComputable) return;
+    const percent = Math.round((event.loaded / event.total) * 100);
+    showUpload(files, percent, `${formatBytes(event.loaded)} / ${formatBytes(event.total)}`);
+  };
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      showUpload(files, 100, "Upload selesai.");
+      $("uploadInput").value = "";
+      load();
+      setTimeout(hideUpload, 1200);
+    } else {
+      showUpload(files, 0, `Upload gagal: ${xhr.responseText || xhr.status}`);
+    }
+  };
+  xhr.onerror = () => showUpload(files, 0, "Upload gagal: koneksi bermasalah.");
+  xhr.send(form);
 }
 
 async function download(file) {
@@ -270,4 +294,23 @@ function size(n) {
   if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
   return `${(n / 1073741824).toFixed(1)} GB`;
+}
+
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`;
+  return `${(n / 1073741824).toFixed(1)} GB`;
+}
+
+function showUpload(files, percent, detail) {
+  $("uploadPanel").hidden = false;
+  $("uploadTitle").textContent = `Mengirim ${files.length} file`;
+  $("uploadPercent").textContent = `${percent}%`;
+  $("uploadProgress").value = percent;
+  $("uploadDetail").textContent = detail;
+}
+
+function hideUpload() {
+  $("uploadPanel").hidden = true;
 }
