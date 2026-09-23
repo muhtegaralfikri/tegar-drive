@@ -959,3 +959,59 @@ input,
     display: none;
   }
 }
+
+/* Mobile hard override */
+@media (max-width: 720px) {
+  .sidebar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .side-action,
+  .upload {
+    min-width: 0;
+    min-height: 38px;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .side-action span:last-child,
+  .upload span:last-of-type {
+    display: none;
+  }
+
+  .file {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    padding-right: 6px;
+  }
+
+  .row-menu {
+    position: static;
+    justify-self: center;
+  }
+
+  .row-menu[open] summary {
+    background: #e5e7eb;
+  }
+
+  .menu-panel {
+    position: fixed;
+    z-index: 1000;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding: 6px;
+    border-radius: 8px;
+  }
+
+  .menu-panel button {
+    min-height: 42px;
+    font-size: 14px;
+  }
+}

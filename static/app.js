@@ -203,6 +203,11 @@ function row(file) {
   el.querySelector('[data-act="rename"]')?.addEventListener("click", () => rename(file));
   el.querySelector('[data-act="restore"]')?.addEventListener("click", () => restore(file));
   el.querySelector('[data-act="delete"]').onclick = () => (trashMode ? removeForever(file) : remove(file));
+  el.querySelector(".row-menu summary").onclick = () => {
+    document.querySelectorAll(".row-menu[open]").forEach((menu) => {
+      if (menu !== el.querySelector(".row-menu")) menu.removeAttribute("open");
+    });
+  };
   return el;
 }
 
