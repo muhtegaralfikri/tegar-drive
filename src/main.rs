@@ -76,6 +76,7 @@ async fn main() -> io::Result<()> {
         .route("/api/rename", post(rename))
         .route("/api/delete", delete(remove))
         .route("/api/upload", post(upload))
+        .route("/view", get(view))
         .route("/download", get(download))
         .with_state(state);
 
@@ -220,6 +221,23 @@ async fn download(
     Ok(res)
 }
 
+async fn view(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<PathQuery>,
+) -> Result<Response, Response> {
+    auth(&state, &headers)?;
+    let path = q.path.unwrap_or_default();
+    let target = resolve(&state.root, &path)?;
+    let file = fs::File::open(&target).await.map_err(err)?;
+    let mut res = Body::from_stream(ReaderStream::new(file)).into_response();
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(content_type(&target)),
+    );
+    Ok(res)
+}
+
 fn auth(state: &AppState, headers: &HeaderMap) -> Result<(), Response> {
     let user = headers
         .get("x-drive-user")
@@ -271,6 +289,39 @@ fn typed(body: &'static str, content_type: &'static str) -> impl IntoResponse {
 
 fn err<E: std::fmt::Display>(e: E) -> Response {
     (StatusCode::BAD_REQUEST, e.to_string()).into_response()
+}
+
+fn content_type(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "apng" => "image/apng",
+        "avif" => "image/avif",
+        "css" => "text/css; charset=utf-8",
+        "csv" => "text/csv; charset=utf-8",
+        "gif" => "image/gif",
+        "htm" | "html" => "text/html; charset=utf-8",
+        "jpeg" | "jpg" => "image/jpeg",
+        "js" | "mjs" => "application/javascript; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
+        "log" | "md" | "rs" | "sh" | "toml" | "txt" | "xml" | "yaml" | "yml" => {
+            "text/plain; charset=utf-8"
+        }
+        "mp3" => "audio/mpeg",
+        "mp4" => "video/mp4",
+        "ogg" => "audio/ogg",
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "svg" => "image/svg+xml",
+        "webm" => "video/webm",
+        "webp" => "image/webp",
+        "wav" => "audio/wav",
+        _ => "application/octet-stream",
+    }
 }
 
 #[cfg(test)]

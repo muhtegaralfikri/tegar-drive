@@ -13,6 +13,7 @@ const icons = {
   "folder-plus": '<svg viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
   "hard-drive": '<svg viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg>',
   logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
   pencil: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
   trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
@@ -89,6 +90,9 @@ function initDrive() {
   $("newFolderBtn").innerHTML = `${icon("folder-plus")} <span>Folder</span>`;
   $("upBtn").innerHTML = `${icon("arrow-up")} <span>Naik</span>`;
   $("logoutBtn").innerHTML = icon("logout");
+  $("closePreview").innerHTML = icon("x");
+  $("closePreview").onclick = closePreview;
+  $("previewDialog").addEventListener("close", clearPreview);
   $("logoutBtn").onclick = () => {
     localStorage.removeItem("drive-auth");
     location.href = "/login";
@@ -147,7 +151,7 @@ function row(file) {
       cwd = file.path;
       load();
     } else {
-      download(file);
+      preview(file);
     }
   };
   el.querySelector('[data-act="download"]')?.addEventListener("click", () => download(file));
@@ -200,6 +204,61 @@ async function download(file) {
   a.download = file.name;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function preview(file) {
+  $("previewTitle").textContent = file.name;
+  $("previewBody").replaceChildren(message("Memuat preview..."));
+  $("previewDownload").onclick = () => download(file);
+  $("previewDialog").showModal();
+
+  const res = await api(`/view?path=${encodeURIComponent(file.path)}`);
+  const type = res.headers.get("content-type") || "";
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const ext = file.name.split(".").pop().toLowerCase();
+  let node;
+
+  if (type.startsWith("image/")) {
+    node = document.createElement("img");
+    node.src = url;
+  } else if (type.startsWith("video/")) {
+    node = document.createElement("video");
+    node.src = url;
+    node.controls = true;
+  } else if (type.startsWith("audio/")) {
+    node = document.createElement("audio");
+    node.src = url;
+    node.controls = true;
+  } else if (type === "application/pdf") {
+    node = document.createElement("iframe");
+    node.src = url;
+  } else if (type.startsWith("text/") || ["js", "json", "md", "rs", "toml", "yaml", "yml"].includes(ext)) {
+    node = document.createElement("pre");
+    node.textContent = await blob.text();
+  } else {
+    node = message("Preview belum tersedia untuk format ini. Gunakan tombol download.");
+  }
+
+  node.dataset.url = url;
+  $("previewBody").replaceChildren(node);
+}
+
+function closePreview() {
+  $("previewDialog").close();
+}
+
+function clearPreview() {
+  const node = $("previewBody").firstElementChild;
+  if (node?.dataset?.url) URL.revokeObjectURL(node.dataset.url);
+  $("previewBody").replaceChildren();
+}
+
+function message(text) {
+  const node = document.createElement("div");
+  node.className = "empty-preview";
+  node.textContent = text;
+  return node;
 }
 
 function escapeHtml(text) {

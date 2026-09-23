@@ -352,6 +352,78 @@ button:hover,
   color: #0369a1;
 }
 
+#previewDialog {
+  width: min(920px, calc(100vw - 24px));
+  max-height: calc(100svh - 24px);
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+
+#previewDialog::backdrop {
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.preview-head,
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.preview-actions {
+  justify-content: flex-end;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 0;
+}
+
+#previewTitle {
+  overflow-wrap: anywhere;
+}
+
+#previewBody {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  max-height: calc(100svh - 170px);
+  overflow: auto;
+  padding: 12px;
+}
+
+#previewBody img,
+#previewBody video,
+#previewBody iframe {
+  width: 100%;
+  max-height: calc(100svh - 200px);
+  border: 0;
+  object-fit: contain;
+}
+
+#previewBody iframe {
+  min-height: 70svh;
+}
+
+#previewBody audio {
+  width: 100%;
+}
+
+#previewBody pre {
+  width: 100%;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.empty-preview {
+  color: #64748b;
+  text-align: center;
+}
+
 svg {
   width: 20px;
   height: 20px;
