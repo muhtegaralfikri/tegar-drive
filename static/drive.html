@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Drive - Tegar Drive</title>
-    <link rel="stylesheet" href="/style.css?v=23" />
+    <link rel="stylesheet" href="/style.css?v=24" />
   </head>
   <body>
     <main class="app-shell">
@@ -31,15 +31,6 @@
               <span>Trash</span>
             </button>
           </nav>
-
-          <section class="storage-card">
-            <h2>Storage</h2>
-            <div>
-              <strong id="storageText">Memuat...</strong>
-              <small id="storageUsed">-</small>
-            </div>
-            <progress id="storageProgress" value="0" max="100"></progress>
-          </section>
         </aside>
 
         <section class="content">
@@ -53,6 +44,15 @@
               <p id="pageHint" hidden>Items in Trash are kept until permanently deleted.</p>
             </div>
           </header>
+
+          <section class="storage-card">
+            <h2>Root Volume</h2>
+            <div>
+              <strong id="storageText">Memuat...</strong>
+              <small id="storageUsed">-</small>
+            </div>
+            <progress id="storageProgress" value="0" max="100"></progress>
+          </section>
 
           <div class="content-head">
             <details id="newMenu" class="new-menu">
@@ -105,7 +105,7 @@
             <button id="bulkDelete" class="danger">Delete</button>
           </section>
           <div class="file-head">
-            <span>Name</span>
+            <span><input id="selectAll" class="pick" type="checkbox" aria-label="Pilih semua file" /> Name</span>
             <span>Size</span>
             <span>Modified</span>
             <span></span>
@@ -129,6 +129,6 @@
       </dialog>
     </main>
 
-    <script src="/app.js?v=23"></script>
+    <script src="/app.js?v=24"></script>
   </body>
 </html>

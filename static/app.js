@@ -80,6 +80,7 @@ function initDrive() {
   $("search").oninput = queueSearch;
   $("sortBy").onchange = render;
   $("uploadInput").onchange = (e) => upload(e.target.files);
+  $("selectAll").onchange = toggleSelectAll;
   $("bulkMove").onclick = () => moveItems([...selected]);
   $("bulkCopy").onclick = () => copyItems([...selected]);
   $("bulkDelete").onclick = () => deleteItems([...selected]);
@@ -176,6 +177,7 @@ function render() {
   const shown = q && q.length < 2 ? entries.filter((f) => f.name.toLowerCase().includes(q)) : [...entries];
   shown.sort(compareFiles);
   $("files").replaceChildren(...(shown.length ? shown.map(row) : [emptyState()]));
+  syncSelectAll(shown);
   updateBulkBar();
 }
 
@@ -194,6 +196,7 @@ function compareFiles(a, b) {
 function row(file) {
   const el = document.createElement("article");
   el.className = "file";
+  el.dataset.path = file.path;
   el.innerHTML = `
     <div class="name">
       <input class="pick" type="checkbox" ${selected.has(file.path) ? "checked" : ""} aria-label="Pilih ${escapeHtml(file.name)}" />
@@ -241,6 +244,23 @@ function row(file) {
 function updateBulkBar() {
   $("bulkBar").hidden = !selected.size || trashMode;
   $("selectedCount").textContent = `${selected.size} dipilih`;
+}
+
+function toggleSelectAll(e) {
+  if (trashMode) return;
+  document.querySelectorAll(".file").forEach((row) => {
+    const path = row.dataset.path;
+    if (e.target.checked) selected.add(path);
+    else selected.delete(path);
+  });
+  render();
+}
+
+function syncSelectAll(shown) {
+  const box = $("selectAll");
+  box.disabled = trashMode || !shown.length;
+  box.checked = !box.disabled && shown.every((file) => selected.has(file.path));
+  box.indeterminate = !box.checked && shown.some((file) => selected.has(file.path));
 }
 
 async function mkdir() {
