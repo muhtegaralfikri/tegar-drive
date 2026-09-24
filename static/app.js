@@ -32,6 +32,7 @@ if ($("loginBtn")) initLogin();
 if ($("files")) initDrive();
 
 function initLogin() {
+  window.addEventListener("pageshow", () => setLoginLoading(false));
   $("togglePassword").innerHTML = icon("eye");
   $("togglePassword").onclick = () => {
     const visible = $("password").type === "text";
@@ -192,7 +193,7 @@ function row(file) {
       <span class="file-icon ${file.dir ? "dir" : "doc"}">${icon(file.dir ? "folder" : "file")}</span>
       <span>
         <strong>${escapeHtml(file.name)}</strong>
-        <small>${trashMode && file.original_path ? escapeHtml(file.original_path) : kind(file.name)}</small>
+        <small>${file.dir ? "Folder" : trashMode && file.original_path ? escapeHtml(file.original_path) : kind(file.name)}</small>
       </span>
     </div>
     <span class="file-size">${file.dir ? "-" : formatBytes(file.size)}</span>

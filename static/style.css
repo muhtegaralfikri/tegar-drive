@@ -81,12 +81,16 @@ svg {
   fill: none;
 }
 
-.primary,
-.upload {
+.primary {
   background: #0f766e;
   border-color: #0f766e;
   color: #fff;
   font-weight: 700;
+}
+
+.primary:hover {
+  background: #0b5f59;
+  border-color: #0b5f59;
 }
 
 .danger {
@@ -171,7 +175,13 @@ label {
   width: 36px;
   padding: 0;
   border: 0;
+  background: transparent;
+  color: #475569;
   transform: translateY(-50%);
+}
+
+.input-icon:hover {
+  background: transparent;
 }
 
 .spinner {
@@ -236,13 +246,22 @@ label {
   justify-content: flex-start;
   border-color: transparent;
   background: transparent;
+  color: #374151;
+  font-weight: 500;
 }
 
 .side-action:hover,
-.side-action.primary {
+.upload:hover {
   background: #ecfdf5;
   border-color: #99f6e4;
   color: #0f766e;
+}
+
+.side-action.primary {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+  font-weight: 700;
 }
 
 .upload input {
@@ -622,17 +641,27 @@ label {
 
   .side-action span:last-child,
   .upload span:last-of-type {
+    display: block;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .side-action.primary,
+  .side-action svg,
+  .upload svg {
+    flex: 0 0 auto;
+  }
+
   .side-action:hover,
   .upload:hover {
     background: #ecfdf5;
     color: #0f766e;
+  }
+
+  .side-action.primary {
+    background: #0f766e;
+    color: #fff;
   }
 
   .content-head {
