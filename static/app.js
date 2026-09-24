@@ -69,18 +69,16 @@ function setLoginLoading(on) {
 }
 
 function initDrive() {
-  $("upBtn").innerHTML = `${icon("arrow-up")} <span>Naik</span>`;
-  $("newFolderBtn").innerHTML = `${icon("folder-plus")} <span>Folder</span>`;
-  $("trashBtn").innerHTML = `${icon("trash")} <span>Trash</span>`;
+  $("upBtn").innerHTML = `${icon("arrow-up")} <span>Back</span>`;
   $("logoutBtn").innerHTML = icon("logout");
   $("closePreview").innerHTML = icon("x");
+  $("filesBtn").onclick = goFiles;
   $("upBtn").onclick = up;
   $("newFolderBtn").onclick = mkdir;
-  $("trashBtn").onclick = toggleTrash;
+  $("trashBtn").onclick = goTrash;
   $("logoutBtn").onclick = logout;
   $("search").oninput = queueSearch;
   $("sortBy").onchange = render;
-  $("sortDir").onclick = toggleSort;
   $("uploadInput").onchange = (e) => upload(e.target.files);
   $("bulkMove").onclick = () => moveItems([...selected]);
   $("bulkCopy").onclick = () => copyItems([...selected]);
@@ -97,12 +95,21 @@ function initDrive() {
 }
 
 function up() {
+  if (!cwd) return;
   cwd = cwd.split("/").slice(0, -1).join("/");
   load();
 }
 
-function toggleTrash() {
-  trashMode = !trashMode;
+function goFiles() {
+  trashMode = false;
+  cwd = "";
+  selected.clear();
+  $("search").value = "";
+  load();
+}
+
+function goTrash() {
+  trashMode = true;
   cwd = "";
   selected.clear();
   $("search").value = "";
@@ -119,21 +126,21 @@ function queueSearch() {
   searchTimer = setTimeout(searchOrFilter, 250);
 }
 
-function toggleSort() {
-  $("sortDir").dataset.desc = $("sortDir").dataset.desc === "true" ? "false" : "true";
-  $("sortDir").textContent = $("sortDir").dataset.desc === "true" ? "Z-A" : "A-Z";
-  render();
-}
-
 async function load() {
   selected.clear();
   const res = await api(trashMode ? "/api/trash" : `/api/list?path=${encodeURIComponent(cwd)}`);
   if (res.status === 401) return (location.href = "/login");
   entries = await res.json();
-  $("crumb").textContent = trashMode ? "/Trash" : "/" + cwd;
-  $("upBtn").disabled = trashMode || !cwd;
-  $("newFolderBtn").disabled = trashMode;
+  $("topContext").textContent = trashMode ? "Trash" : "My Files";
+  $("pageTitle").textContent = trashMode ? "Trash" : "My Files";
+  $("pageHint").hidden = !trashMode;
+  $("crumb").textContent = trashMode ? "Trash" : "/" + cwd;
+  $("search").placeholder = trashMode ? "Search trash..." : "Search files...";
+  $("upBtn").hidden = trashMode || !cwd;
+  $("newMenu").hidden = trashMode;
+  $("filesBtn").classList.toggle("primary", !trashMode);
   $("trashBtn").classList.toggle("primary", trashMode);
+  document.body.classList.toggle("trash-mode", trashMode);
   render();
 }
 
@@ -142,8 +149,8 @@ async function loadStorage() {
   if (!res.ok) return;
   const info = await res.json();
   const percent = info.total ? Math.round((info.used / info.total) * 100) : 0;
-  $("storageUsed").textContent = `${percent}%`;
-  $("storageText").textContent = `${formatBytes(info.used)} / ${formatBytes(info.total)} / sisa ${formatBytes(info.free)}`;
+  $("storageUsed").textContent = `${percent}% used`;
+  $("storageText").textContent = `${formatBytes(info.used)} of ${formatBytes(info.total)}`;
   $("storageProgress").value = percent;
 }
 
@@ -168,15 +175,15 @@ function render() {
   const q = $("search").value.trim().toLowerCase();
   const shown = q && q.length < 2 ? entries.filter((f) => f.name.toLowerCase().includes(q)) : [...entries];
   shown.sort(compareFiles);
-  $("files").replaceChildren(...shown.map(row));
+  $("files").replaceChildren(...(shown.length ? shown.map(row) : [emptyState()]));
   updateBulkBar();
 }
 
 function compareFiles(a, b) {
   const dir = Number(b.dir) - Number(a.dir);
   if (dir) return dir;
-  const desc = $("sortDir").dataset.desc === "true";
-  const by = $("sortBy").value;
+  const [by, dirName] = $("sortBy").value.split("-");
+  const desc = dirName === "desc";
   let result = a.name.localeCompare(b.name, "id", { numeric: true, sensitivity: "base" });
   if (by === "modified") result = a.modified - b.modified;
   if (by === "size") result = a.size - b.size;
@@ -193,7 +200,7 @@ function row(file) {
       <span class="file-icon ${file.dir ? "dir" : "doc"}">${icon(file.dir ? "folder" : "file")}</span>
       <span>
         <strong>${escapeHtml(file.name)}</strong>
-        <small>${file.dir ? "Folder" : trashMode && file.original_path ? escapeHtml(file.original_path) : kind(file.name)}</small>
+        <small>${subtitle(file)}</small>
       </span>
     </div>
     <span class="file-size">${file.dir ? "-" : formatBytes(file.size)}</span>
@@ -240,6 +247,7 @@ async function mkdir() {
   const name = prompt("Nama folder");
   if (!name) return;
   await api("/api/mkdir", { method: "POST", headers: json(), body: JSON.stringify({ path: cwd, name }) });
+  $("newMenu").removeAttribute("open");
   load();
 }
 
@@ -297,7 +305,8 @@ async function removeForever(file) {
 
 function upload(files) {
   files = Array.from(files || []);
-  if (!files.length) return;
+  if (!files.length || trashMode) return;
+  $("newMenu").removeAttribute("open");
   const form = new FormData();
   files.forEach((file) => form.append("file", file));
   const xhr = new XMLHttpRequest();
@@ -380,6 +389,21 @@ function showUpload(files, percent, detail) {
 
 function hideUpload() {
   $("uploadPanel").hidden = true;
+}
+
+function emptyState() {
+  const node = document.createElement("div");
+  node.className = "empty-state";
+  node.innerHTML = trashMode
+    ? "<strong>Trash is empty</strong><small>Deleted files will appear here.</small>"
+    : "<strong>Folder is empty</strong><small>Use + New to upload files or create a folder.</small>";
+  return node;
+}
+
+function subtitle(file) {
+  if (trashMode && file.original_path) return escapeHtml(file.original_path);
+  if (file.dir) return "Folder";
+  return `${kind(file.name).replace(" file", "")} · ${formatBytes(file.size)}`;
 }
 
 function json() {

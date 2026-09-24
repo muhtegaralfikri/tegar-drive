@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Drive - Tegar Drive</title>
-    <link rel="stylesheet" href="/style.css?v=15" />
+    <link rel="stylesheet" href="/style.css?v=16" />
   </head>
   <body>
     <main class="app-shell">
@@ -13,7 +13,7 @@
           <div class="brand-icon small" data-icon="hard-drive"></div>
           <div>
             <h1>Tegar Drive</h1>
-            <p id="crumb">/</p>
+            <p id="topContext">My Files</p>
           </div>
         </div>
         <button id="logoutBtn" class="icon-btn" title="Keluar"></button>
@@ -21,45 +21,74 @@
 
       <section class="workspace">
         <aside class="sidebar">
-          <button id="upBtn" class="side-action"></button>
-          <button id="newFolderBtn" class="side-action"></button>
-          <button id="trashBtn" class="side-action"></button>
-          <label class="side-action upload">
-            <span data-icon="upload"></span>
-            <span>Upload</span>
-            <input id="uploadInput" type="file" multiple />
-          </label>
+          <nav class="nav-list" aria-label="Drive navigation">
+            <button id="filesBtn" class="nav-item primary">
+              <span data-icon="folder"></span>
+              <span>My Files</span>
+            </button>
+            <button id="trashBtn" class="nav-item">
+              <span data-icon="trash"></span>
+              <span>Trash</span>
+            </button>
+          </nav>
+
+          <section class="storage-card">
+            <h2>Storage</h2>
+            <div>
+              <strong id="storageText">Memuat...</strong>
+              <small id="storageUsed">-</small>
+            </div>
+            <progress id="storageProgress" value="0" max="100"></progress>
+          </section>
         </aside>
 
         <section class="content">
-          <div class="content-head">
-            <h2>Files</h2>
-            <section class="storage-card">
-              <div>
-                <strong id="storageUsed">-</strong>
-                <small id="storageText">Memuat...</small>
+          <header class="page-head">
+            <div>
+              <div class="breadcrumb-line">
+                <button id="upBtn" class="crumb-up"></button>
+                <p id="crumb">/</p>
               </div>
-              <progress id="storageProgress" value="0" max="100"></progress>
-            </section>
+              <h2 id="pageTitle">My Files</h2>
+              <p id="pageHint" hidden>Items in Trash are kept until permanently deleted.</p>
+            </div>
+          </header>
+
+          <div class="content-head">
+            <details id="newMenu" class="new-menu">
+              <summary>+ New</summary>
+              <div class="new-panel">
+                <label>
+                  <span data-icon="upload"></span>
+                  <span>Upload files</span>
+                  <input id="uploadInput" type="file" multiple />
+                </label>
+                <button id="newFolderBtn" type="button">
+                  <span data-icon="folder-plus"></span>
+                  <span>New folder</span>
+                </button>
+              </div>
+            </details>
+
             <div class="search-wrap">
               <span data-icon="search"></span>
-              <input id="search" placeholder="Cari file..." />
+              <input id="search" placeholder="Search files..." />
             </div>
-            <div class="sort-wrap">
-              <select id="sortBy" title="Urutkan">
-                <option value="name">Nama</option>
-                <option value="modified">Tanggal</option>
-                <option value="size">Ukuran</option>
-                <option value="type">Tipe</option>
-              </select>
-              <button id="sortDir" class="icon-btn" title="Balik urutan">A-Z</button>
-            </div>
+
+            <select id="sortBy" class="sort-select" title="Sort">
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
+              <option value="modified-desc">Newest</option>
+              <option value="modified-asc">Oldest</option>
+              <option value="size-desc">Largest</option>
+              <option value="size-asc">Smallest</option>
+              <option value="type-asc">Type</option>
+            </select>
           </div>
 
           <div id="drop">
             <span data-icon="cloud-upload"></span>
             <strong>Lepas file di sini</strong>
-            <small>atau gunakan tombol upload</small>
           </div>
           <section id="uploadPanel" hidden>
             <div>
@@ -76,9 +105,9 @@
             <button id="bulkDelete" class="danger">Delete</button>
           </section>
           <div class="file-head">
-            <span>Nama</span>
-            <span>Ukuran</span>
-            <span>Diubah</span>
+            <span>Name</span>
+            <span>Size</span>
+            <span>Modified</span>
             <span></span>
           </div>
           <section id="files"></section>
@@ -100,6 +129,6 @@
       </dialog>
     </main>
 
-    <script src="/app.js?v=15"></script>
+    <script src="/app.js?v=16"></script>
   </body>
 </html>
