@@ -7,7 +7,7 @@ use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Multipart, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
-    response::{Html, IntoResponse, Response},
+    response::{IntoResponse, Response},
     routing::{delete, get, post},
 };
 use serde::{Deserialize, Serialize};
@@ -141,20 +141,20 @@ async fn main() -> io::Result<()> {
     axum::serve(listener, app).await
 }
 
-async fn login_page() -> Html<&'static str> {
-    Html(LOGIN)
+async fn login_page() -> impl IntoResponse {
+    no_cache_html(LOGIN)
 }
 
-async fn drive_page() -> Html<&'static str> {
-    Html(DRIVE)
+async fn drive_page() -> impl IntoResponse {
+    no_cache_html(DRIVE)
 }
 
 async fn js() -> impl IntoResponse {
-    typed(JS, "application/javascript")
+    no_cache_typed(JS, "application/javascript")
 }
 
 async fn css() -> impl IntoResponse {
-    typed(CSS, "text/css")
+    no_cache_typed(CSS, "text/css")
 }
 
 async fn login(
@@ -802,8 +802,18 @@ fn copy_path(from: &Path, to: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn typed(body: &'static str, content_type: &'static str) -> impl IntoResponse {
-    ([(header::CONTENT_TYPE, content_type)], body)
+fn no_cache_html(body: &'static str) -> impl IntoResponse {
+    no_cache_typed(body, "text/html; charset=utf-8")
+}
+
+fn no_cache_typed(body: &'static str, content_type: &'static str) -> impl IntoResponse {
+    (
+        [
+            (header::CONTENT_TYPE, content_type),
+            (header::CACHE_CONTROL, "no-store, max-age=0"),
+        ],
+        body,
+    )
 }
 
 fn err<E: std::fmt::Display>(e: E) -> Response {
