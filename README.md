@@ -5,6 +5,9 @@ File manager ringan untuk HDD STB.
 ## Run Lokal
 
 ```powershell
+npm ci
+npm run build:css
+
 $env:DRIVE_ROOT="D:\github_project\tegar-drive\drive-test"
 $env:DRIVE_ADDR="127.0.0.1:18083"
 $env:DRIVE_USER="tegar"
@@ -44,7 +47,7 @@ Port yang disarankan:
 
 ## Build GitHub
 
-Push ke `main` akan menjalankan test dan build Linux ARM64 sebagai artifact.
+Push ke `main` akan build CSS Tailwind statis, menjalankan test, lalu build Linux ARM64 sebagai artifact.
 
 Untuk membuat release yang bisa diambil STB:
 

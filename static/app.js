@@ -403,7 +403,7 @@ function emptyState() {
 function subtitle(file) {
   if (trashMode && file.original_path) return escapeHtml(file.original_path);
   if (file.dir) return "Folder";
-  return `${kind(file.name).replace(" file", "")} · ${formatBytes(file.size)}`;
+  return `${kind(file.name).replace(" file", "")} - ${formatBytes(file.size)}`;
 }
 
 function json() {

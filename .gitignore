@@ -1,3 +1,4 @@
 /target/
 /drive-test/
+/node_modules/
 *.log

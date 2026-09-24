@@ -1,0 +1,512 @@
+@import "tailwindcss";
+
+@source "./*.html";
+@source "./*.js";
+
+@theme {
+  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    @apply m-0 bg-gray-100 text-gray-900 font-sans;
+  }
+
+  h1,
+  h2,
+  p,
+  dl,
+  dd {
+    @apply m-0;
+  }
+
+  h1 {
+    @apply text-[17px] font-bold;
+  }
+
+  h2 {
+    @apply text-sm font-bold;
+  }
+
+  p,
+  small {
+    @apply text-gray-500;
+  }
+
+  button,
+  input,
+  select {
+    @apply font-[inherit];
+  }
+
+  input,
+  select {
+    @apply min-h-[34px] w-full rounded-md border border-gray-300 bg-white px-2.5 text-inherit focus:border-teal-700 focus:outline-2 focus:outline-teal-200;
+  }
+
+  button,
+  .new-menu summary,
+  .new-panel label {
+    @apply inline-flex min-h-[34px] cursor-pointer items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-2.5 text-inherit hover:bg-gray-50;
+  }
+
+  button:disabled {
+    @apply cursor-default opacity-55;
+  }
+
+  svg {
+    @apply h-5 w-5 fill-none stroke-current stroke-2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+@layer components {
+  .primary {
+    @apply border-teal-700 bg-teal-700 font-bold text-white hover:border-teal-800 hover:bg-teal-800;
+  }
+
+  .danger {
+    @apply text-red-600;
+  }
+
+  .login-screen {
+    @apply grid min-h-[100svh] place-items-center p-5;
+  }
+
+  .login-card {
+    @apply grid w-[min(390px,100%)] gap-3.5 rounded-lg border border-gray-300 bg-white p-6;
+  }
+
+  .brand,
+  .identity {
+    @apply flex items-center gap-3;
+  }
+
+  .brand-icon {
+    @apply grid h-[42px] w-[42px] place-items-center rounded-lg bg-teal-700 text-white;
+  }
+
+  .brand-icon.small {
+    @apply h-[30px] w-[30px];
+  }
+
+  .field {
+    @apply grid gap-[7px];
+  }
+
+  label {
+    @apply text-[13px] font-semibold text-gray-600;
+  }
+
+  .password-wrap,
+  .search-wrap {
+    @apply relative;
+  }
+
+  .password-wrap input {
+    @apply pr-11;
+  }
+
+  .input-icon {
+    @apply absolute right-[3px] top-1/2 w-9 -translate-y-1/2 border-0 bg-transparent p-0 text-gray-600 hover:bg-transparent;
+  }
+
+  .spinner {
+    @apply h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white;
+  }
+
+  .error {
+    @apply rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700;
+  }
+
+  .app-shell {
+    @apply min-h-[100svh];
+  }
+
+  .topbar {
+    @apply flex h-[52px] items-center justify-between border-b border-gray-300 bg-white px-3;
+  }
+
+  .icon-btn {
+    @apply w-[34px] p-0;
+  }
+
+  .workspace {
+    @apply grid min-h-[calc(100svh-52px)] grid-cols-[180px_minmax(0,1fr)];
+  }
+
+  .sidebar {
+    @apply flex flex-col gap-3 border-r border-gray-300 bg-white p-2;
+  }
+
+  .nav-list {
+    @apply grid gap-1;
+  }
+
+  .nav-item {
+    @apply w-full justify-start border-transparent bg-transparent font-medium text-gray-700 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700;
+  }
+
+  .nav-item.primary {
+    @apply border-teal-200 bg-teal-50 text-teal-700;
+  }
+
+  .storage-card {
+    @apply mt-auto grid gap-1.5 border-t border-gray-200 p-2;
+  }
+
+  .storage-card > div {
+    @apply grid gap-0.5 text-xs;
+  }
+
+  #storageProgress,
+  #uploadProgress {
+    @apply w-full accent-teal-700;
+  }
+
+  #storageProgress {
+    @apply h-[5px];
+  }
+
+  .content {
+    @apply min-w-0 bg-white;
+  }
+
+  .page-head {
+    @apply flex min-h-[74px] items-center border-b border-gray-200 p-2.5;
+  }
+
+  .breadcrumb-line {
+    @apply mb-1 flex min-h-[22px] items-center gap-2;
+  }
+
+  .breadcrumb-line p,
+  #pageHint {
+    @apply text-xs;
+  }
+
+  .crumb-up {
+    @apply min-h-[26px] border-transparent bg-transparent px-2 text-teal-700;
+  }
+
+  .crumb-up[hidden],
+  .new-menu[hidden],
+  #uploadPanel[hidden],
+  #bulkBar[hidden] {
+    @apply hidden;
+  }
+
+  .content-head {
+    @apply grid min-h-12 grid-cols-[auto_minmax(180px,1fr)_136px] items-center gap-2 border-b border-gray-300 p-1.5 px-2.5;
+  }
+
+  .new-menu {
+    @apply relative;
+  }
+
+  .new-menu summary {
+    @apply list-none border-teal-700 bg-teal-700 font-bold text-white hover:border-teal-800 hover:bg-teal-800 active:border-teal-900 active:bg-teal-900;
+  }
+
+  .new-menu[open] summary {
+    @apply border-teal-800 bg-teal-800;
+  }
+
+  .new-menu summary::-webkit-details-marker,
+  .row-menu summary::-webkit-details-marker {
+    @apply hidden;
+  }
+
+  .new-panel {
+    @apply absolute left-0 top-[calc(100%+6px)] z-15 grid min-w-[172px] gap-1 rounded-md border border-gray-300 bg-white p-1 shadow-xl;
+  }
+
+  .new-panel label,
+  .new-panel button {
+    @apply w-full justify-start border-0 bg-transparent text-[13px];
+  }
+
+  .new-panel input,
+  #drop {
+    @apply hidden;
+  }
+
+  .search-wrap span {
+    @apply absolute left-2.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500;
+  }
+
+  .search-wrap input {
+    @apply pl-9;
+  }
+
+  #uploadPanel {
+    @apply m-2.5 grid gap-2 rounded-md border border-teal-200 bg-teal-50 p-2.5;
+  }
+
+  #uploadPanel > div,
+  #bulkBar {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  #bulkBar {
+    @apply min-h-10 border-b border-gray-300 bg-teal-50 px-2.5 py-1.5;
+  }
+
+  #bulkBar strong {
+    @apply mr-auto text-[13px];
+  }
+
+  #bulkBar button {
+    @apply min-h-[30px] text-[13px];
+  }
+
+  .file-head,
+  .file {
+    @apply grid grid-cols-[minmax(0,1fr)_110px_170px_40px] items-center;
+  }
+
+  .file-head {
+    @apply h-8 border-b border-gray-200 bg-gray-50 px-2.5 text-xs font-semibold text-gray-500;
+  }
+
+  .file {
+    @apply min-h-[46px] border-b border-gray-100 px-2.5 hover:bg-gray-50;
+  }
+
+  .name {
+    @apply flex min-h-11 min-w-0 cursor-pointer items-center gap-2.5;
+  }
+
+  .name > span:last-child {
+    @apply grid min-w-0 gap-0.5;
+  }
+
+  .name strong {
+    @apply overflow-wrap-anywhere text-sm font-semibold;
+  }
+
+  .name small,
+  .file-size,
+  .file-date {
+    @apply text-xs text-gray-500;
+  }
+
+  .pick {
+    @apply h-4 w-4 flex-none p-0 accent-teal-700;
+  }
+
+  .file-icon {
+    @apply grid h-[26px] w-[26px] flex-none place-items-center rounded-md;
+  }
+
+  .file-icon.dir {
+    @apply text-amber-700;
+  }
+
+  .file-icon.doc {
+    @apply text-gray-600;
+  }
+
+  .row-menu {
+    @apply relative justify-self-end;
+  }
+
+  .row-menu summary {
+    @apply grid h-8 w-8 cursor-pointer list-none place-items-center rounded-md text-gray-600 hover:bg-gray-200;
+  }
+
+  .row-menu[open] summary {
+    @apply bg-gray-200;
+  }
+
+  .menu-panel {
+    @apply absolute right-0 z-10 min-w-44 rounded-md border border-gray-300 bg-white p-1 shadow-xl;
+  }
+
+  .menu-panel button {
+    @apply w-full justify-start border-0 bg-transparent text-[13px] hover:bg-gray-100;
+  }
+
+  .empty-state {
+    @apply grid min-h-[220px] place-content-center gap-1.5 text-center text-gray-500;
+  }
+
+  .empty-state strong {
+    @apply text-gray-700;
+  }
+
+  #previewDialog {
+    @apply max-h-[calc(100svh-24px)] w-[min(920px,calc(100vw-24px))] rounded-lg border border-gray-300 bg-white p-0 shadow-2xl;
+  }
+
+  #previewDialog::backdrop {
+    @apply bg-gray-900/45;
+  }
+
+  .preview-head,
+  .preview-actions {
+    @apply flex items-center justify-between gap-2.5 border-b border-gray-200 p-3;
+  }
+
+  .preview-actions {
+    @apply justify-end border-b-0 border-t;
+  }
+
+  #previewTitle {
+    @apply overflow-wrap-anywhere;
+  }
+
+  #previewMeta {
+    @apply mt-1.5 flex flex-wrap gap-x-3.5 gap-y-2 text-[13px] text-gray-500;
+  }
+
+  #previewMeta div {
+    @apply flex gap-1;
+  }
+
+  #previewMeta dt {
+    @apply font-bold;
+  }
+
+  #previewBody {
+    @apply grid min-h-[220px] max-h-[calc(100svh-170px)] place-items-center overflow-auto p-3;
+  }
+
+  #previewBody img,
+  #previewBody video,
+  #previewBody iframe {
+    @apply max-h-[calc(100svh-200px)] w-full border-0 object-contain;
+  }
+
+  #previewBody iframe {
+    @apply min-h-[70svh];
+  }
+
+  #previewBody audio,
+  #previewBody pre {
+    @apply w-full;
+  }
+
+  #previewBody pre {
+    @apply m-0 whitespace-pre-wrap overflow-wrap-anywhere font-mono text-[13px] leading-normal;
+  }
+
+  .empty-preview {
+    @apply text-center text-gray-500;
+  }
+}
+
+@utility overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  @layer components {
+    .topbar {
+      @apply h-12;
+    }
+
+    .brand-icon.small,
+    .storage-card,
+    .file-head {
+      @apply hidden;
+    }
+
+    .app-shell {
+      padding-bottom: calc(66px + env(safe-area-inset-bottom));
+    }
+
+    .workspace {
+      @apply block min-h-[calc(100svh-48px)];
+    }
+
+    .sidebar {
+      @apply fixed inset-x-0 bottom-0 z-20 border-r-0 border-t border-gray-300;
+      padding: 4px max(8px, env(safe-area-inset-left)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+    }
+
+    .nav-list {
+      @apply grid-cols-2 gap-0;
+    }
+
+    .nav-item {
+      @apply min-h-[54px] flex-col justify-center gap-0.5 border-0 bg-transparent px-0.5 py-1 text-[11px] leading-none text-gray-600;
+    }
+
+    .nav-item span:last-child {
+      @apply max-w-full overflow-hidden text-ellipsis whitespace-nowrap;
+    }
+
+    .nav-item.primary {
+      @apply bg-teal-50 text-teal-700;
+    }
+
+    .page-head {
+      @apply min-h-[68px] p-2.5;
+    }
+
+    .content-head {
+      @apply grid-cols-[minmax(0,1fr)_92px] items-stretch;
+    }
+
+    .new-menu {
+      @apply fixed right-[18px] z-25;
+      bottom: calc(86px + env(safe-area-inset-bottom));
+    }
+
+    .new-menu summary {
+      @apply grid h-[52px] min-h-[52px] w-[52px] place-items-center rounded-full border-0 p-0 text-[0px] shadow-xl;
+    }
+
+    .new-menu summary:hover,
+    .new-menu[open] summary {
+      @apply border-teal-800 bg-teal-800 shadow-2xl;
+    }
+
+    .new-menu summary::before {
+      content: "+";
+      @apply translate-y-[-1px] text-[30px] font-medium leading-none;
+    }
+
+    .new-panel {
+      @apply left-auto right-0 top-auto;
+      bottom: 62px;
+    }
+
+    .search-wrap {
+      @apply col-span-full;
+    }
+
+    .file {
+      @apply min-h-12 grid-cols-[minmax(0,1fr)_40px] pr-1.5;
+    }
+
+    .name strong,
+    .name small {
+      @apply overflow-hidden text-ellipsis whitespace-nowrap;
+    }
+
+    .file-size,
+    .file-date {
+      @apply hidden;
+    }
+
+    .row-menu {
+      @apply static justify-self-center;
+    }
+
+    .menu-panel {
+      @apply fixed left-2.5 right-2.5 w-auto min-w-0 rounded-lg p-2;
+      bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+
+    .menu-panel button {
+      @apply min-h-11 text-sm;
+    }
+  }
+}

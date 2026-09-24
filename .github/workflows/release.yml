@@ -14,7 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run build:css
       - run: cargo test --locked
 
   linux-arm64:
@@ -22,7 +28,13 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run build:css
       - run: cargo build --release --locked
       - run: |
           mkdir -p dist
