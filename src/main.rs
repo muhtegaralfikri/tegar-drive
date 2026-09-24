@@ -177,7 +177,8 @@ async fn login(
     res.headers_mut().insert(
         header::SET_COOKIE,
         HeaderValue::from_str(&format!(
-            "td_session={token}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax"
+            "td_session={token}; Path=/; Max-Age=2592000; HttpOnly; SameSite=Lax{}",
+            cookie_secure()
         ))
         .map_err(err)?,
     );
@@ -194,7 +195,11 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let mut res = StatusCode::NO_CONTENT.into_response();
     res.headers_mut().insert(
         header::SET_COOKIE,
-        HeaderValue::from_static("td_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"),
+        HeaderValue::from_str(&format!(
+            "td_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{}",
+            cookie_secure()
+        ))
+        .unwrap_or_else(|_| HeaderValue::from_static("td_session=; Path=/; Max-Age=0")),
     );
     res
 }
@@ -457,14 +462,32 @@ async fn upload(
             continue;
         };
         let final_path = unique_path(&dir, &name).await?;
-        let temp_path = dir.join(format!(".{}.uploading-{}", name, now()));
+        let token = session_token().map_err(err)?;
+        let temp_path = dir.join(format!(".{}.uploading-{}", name, &token[..16]));
         let mut file = fs::File::create(&temp_path).await.map_err(err)?;
-        while let Some(chunk) = field.chunk().await.map_err(err)? {
-            file.write_all(&chunk).await.map_err(err)?;
+        loop {
+            let chunk = match field.chunk().await {
+                Ok(Some(chunk)) => chunk,
+                Ok(None) => break,
+                Err(e) => {
+                    let _ = fs::remove_file(&temp_path).await;
+                    return Err(err(e));
+                }
+            };
+            if let Err(e) = file.write_all(&chunk).await {
+                let _ = fs::remove_file(&temp_path).await;
+                return Err(err(e));
+            }
         }
-        file.sync_all().await.map_err(err)?;
+        if let Err(e) = file.sync_all().await {
+            let _ = fs::remove_file(&temp_path).await;
+            return Err(err(e));
+        }
         drop(file);
-        fs::rename(temp_path, final_path).await.map_err(err)?;
+        if let Err(e) = fs::rename(&temp_path, final_path).await {
+            let _ = fs::remove_file(&temp_path).await;
+            return Err(err(e));
+        }
     }
 
     Ok(StatusCode::CREATED)
@@ -577,6 +600,13 @@ fn cookie<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
         .split(';')
         .filter_map(|part| part.trim().split_once('='))
         .find_map(|(key, value)| (key == name).then_some(value))
+}
+
+fn cookie_secure() -> &'static str {
+    match env::var("DRIVE_COOKIE_SECURE").as_deref() {
+        Ok("1") | Ok("true") | Ok("TRUE") => "; Secure",
+        _ => "",
+    }
 }
 
 fn session_token() -> io::Result<String> {
