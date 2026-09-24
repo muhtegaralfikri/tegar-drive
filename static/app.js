@@ -395,8 +395,8 @@ function emptyState() {
   const node = document.createElement("div");
   node.className = "empty-state";
   node.innerHTML = trashMode
-    ? "<strong>Trash is empty</strong><small>Deleted files will appear here.</small>"
-    : "<strong>Folder is empty</strong><small>Use + New to upload files or create a folder.</small>";
+    ? `${icon("trash")}<strong>Trash is clean</strong><small>Deleted files will appear here.</small>`
+    : `${icon("folder")}<strong>This folder is empty</strong><small>Use + New to upload files or create a folder.</small>`;
   return node;
 }
 
