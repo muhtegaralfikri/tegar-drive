@@ -408,7 +408,19 @@
 @media (max-width: 720px) {
   @layer components {
     .topbar {
-      @apply h-12;
+      @apply h-[44px];
+    }
+
+    .identity {
+      @apply gap-2;
+    }
+
+    h1 {
+      @apply text-base leading-tight;
+    }
+
+    #topContext {
+      @apply text-[12px] leading-tight;
     }
 
     .brand-icon.small,
@@ -418,11 +430,11 @@
     }
 
     .app-shell {
-      padding-bottom: calc(66px + env(safe-area-inset-bottom));
+      padding-bottom: calc(62px + env(safe-area-inset-bottom));
     }
 
     .workspace {
-      @apply block min-h-[calc(100svh-48px)];
+      @apply block min-h-[calc(100svh-44px)];
     }
 
     .sidebar {
@@ -435,7 +447,7 @@
     }
 
     .nav-item {
-      @apply min-h-[54px] flex-col justify-center gap-0.5 border-0 bg-transparent px-0.5 py-1 text-[11px] leading-none text-gray-600;
+      @apply min-h-[50px] flex-col justify-center gap-0.5 border-0 bg-transparent px-0.5 py-1 text-[11px] leading-none text-gray-600;
     }
 
     .nav-item span:last-child {
@@ -447,16 +459,20 @@
     }
 
     .page-head {
-      @apply min-h-[68px] p-2.5;
+      @apply min-h-[52px] p-2.5;
+    }
+
+    .breadcrumb-line {
+      @apply mb-0 min-h-[18px];
     }
 
     .content-head {
-      @apply grid-cols-[minmax(0,1fr)_92px] items-stretch;
+      @apply min-h-0 grid-cols-[minmax(0,1fr)_116px] gap-1.5 border-gray-200 p-2.5;
     }
 
     .new-menu {
-      @apply fixed right-[18px] z-25;
-      bottom: calc(86px + env(safe-area-inset-bottom));
+      @apply fixed right-5 z-25;
+      bottom: calc(72px + env(safe-area-inset-bottom));
     }
 
     .new-menu summary {
@@ -482,8 +498,20 @@
       @apply col-span-full;
     }
 
+    .sort-select {
+      @apply col-span-full w-[min(240px,70vw)];
+    }
+
     .file {
-      @apply min-h-12 grid-cols-[minmax(0,1fr)_40px] pr-1.5;
+      @apply min-h-[58px] grid-cols-[minmax(0,1fr)_36px] pr-1.5;
+    }
+
+    .name {
+      @apply min-h-[56px] gap-2;
+    }
+
+    .file-icon {
+      @apply h-6 w-6;
     }
 
     .name strong,
@@ -502,7 +530,7 @@
 
     .menu-panel {
       @apply fixed left-2.5 right-2.5 w-auto min-w-0 rounded-lg p-2;
-      bottom: calc(72px + env(safe-area-inset-bottom));
+      bottom: calc(68px + env(safe-area-inset-bottom));
     }
 
     .menu-panel button {
